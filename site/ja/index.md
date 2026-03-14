@@ -62,6 +62,8 @@ Lattice Current は、次のものを1つの面で扱いたい利用者向けの
 
 <DecisionLoop locale="ja" />
 
+<ScrollSignalStory locale="ja" />
+
 <FeatureExplorer locale="ja" />
 
 ## フォークとしての位置づけ

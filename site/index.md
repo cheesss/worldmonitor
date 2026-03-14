@@ -62,6 +62,8 @@ Lattice Current is built for operators who need one surface for:
 
 <DecisionLoop locale="en" />
 
+<ScrollSignalStory locale="en" />
+
 <FeatureExplorer locale="en" />
 
 ## Fork position

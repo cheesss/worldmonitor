@@ -16,6 +16,8 @@ owner: core
 The architecture stack below is interactive. Click a layer to see its runtime boundary, the major nodes it owns, the flows it serves, and the docs that explain it in more depth.
 </p>
 
+<ScrollSignalStory locale="en" />
+
 <SystemTopology locale="en" />
 
 ## Main subsystems

@@ -16,6 +16,8 @@ owner: core
 下のアーキテクチャスタックはインタラクティブです。レイヤーをクリックすると、実行境界、主要ノード、主なフロー、関連文書をまとめて確認できます。
 </p>
 
+<ScrollSignalStory locale="ja" />
+
 <SystemTopology locale="ja" />
 
 ## 主なサブシステム

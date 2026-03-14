@@ -16,6 +16,8 @@ owner: core
 Each capability below is clickable. Use it to trace what the feature does, where it appears in the product, and which neighboring systems it depends on.
 </p>
 
+<CapabilityConstellation locale="en" />
+
 <FeatureExplorer locale="en" />
 
 ## Capability groups

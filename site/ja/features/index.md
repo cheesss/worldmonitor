@@ -16,6 +16,8 @@ owner: core
 下の機能はすべてクリックできます。各機能が何を行い、製品のどこに現れ、どの周辺システムに接続するかをすぐに追えます。
 </p>
 
+<CapabilityConstellation locale="ja" />
+
 <FeatureExplorer locale="ja" />
 
 このセクションでは、公開ドキュメントサイトで説明する主要機能軸をまとめます。
