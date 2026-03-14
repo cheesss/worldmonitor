@@ -59,3 +59,4 @@ certs/
 data/historical/
 *.docx
 upath-*.tgz
+!upath-1.2.0.tgz
