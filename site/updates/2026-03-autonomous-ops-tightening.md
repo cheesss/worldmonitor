@@ -1,6 +1,6 @@
 ---
 title: "2026-03: Autonomous source acceptance and candidate expansion"
-summary: The scheduler now auto-sweeps source registries, asks Codex for missing coverage candidates, and replays again when the active universe changes.
+summary: The scheduler now auto-sweeps source registries, asks Codex for missing coverage candidates, and uses score, diversity, and cooldown controls to avoid one-sided automation.
 status: beta
 variants:
   - full
@@ -17,16 +17,21 @@ owner: core
 - Added scheduler-driven Codex candidate expansion for top coverage gaps
 - Added immediate universe-policy evaluation when Codex candidate proposals are ingested
 - Added automatic replay refresh when new accepted candidates changed the active universe
+- Replaced raw-confidence approvals with composite scoring in source and candidate automation
+- Added sector, asset-kind, category, domain, and base-url caps to avoid over-concentration
+- Added cooldown and region-balance controls for scheduler-driven candidate expansion
+- Added promotion-score and novelty-overlap gates for Codex-driven theme promotion
 
 ## Why it matters
 
-The biggest remaining manual steps were routine source acceptance and pressing `Ask Codex` for missing investment coverage. Those are now part of the unattended worker loop under deterministic guardrails.
+The biggest remaining manual steps were routine source acceptance and pressing `Ask Codex` for missing investment coverage. Those are now part of the unattended worker loop under deterministic guardrails, and the worker is less likely to keep reinforcing the same theme, source family, or sector repeatedly.
 
 ## User impact
 
 - `Source Ops` still allows manual overrides, but routine approval and activation work can now happen without operator clicks
 - `Investment Workflow` still shows the review queue, but the scheduler can now populate and auto-accept eligible candidates before you open the panel
 - `Replay` and `walk-forward` results can adapt faster because accepted universe changes now trigger a replay refresh
+- Auto-approvals should now be more balanced because the worker penalizes crowding and respects caps instead of relying on a single threshold
 
 ## Safety boundary
 
@@ -34,3 +39,4 @@ The biggest remaining manual steps were routine source acceptance and pressing `
 - source candidates still need confidence and structure checks
 - candidate proposals still need to pass the current universe policy
 - auto-accepted candidates still remain subject to probation and auto-demotion
+- scheduler-driven candidate expansion now respects theme cooldowns and region balancing before it asks Codex again

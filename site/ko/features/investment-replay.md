@@ -36,7 +36,8 @@ owner: core
 - 승인된 동적 후보가 다음 refresh와 이후 백테스트에 참여
 - manual / guarded-auto / full-auto universe policy 모드
 - scheduler가 coverage gap에 대해 Codex 후보 확장을 자동 실행할 수 있음
-- source registry 후보도 guarded policy에서 자동 승인 / 활성화될 수 있음
+- source registry 후보도 guarded score + diversity policy에서 자동 승인 / 활성화될 수 있음
+- candidate auto-approval이 composite score + sector / asset-kind cap으로 동작
 
 ## 주요 UI 표면
 
@@ -57,8 +58,10 @@ owner: core
 - core + approved expansion 자산을 함께 보는 deterministic ranking
 - Codex-assisted candidate expansion review queue
 - guarded auto-approval + probation + auto-demotion
+- source / role / supporting signal / crowding penalty를 함께 보는 composite auto-approval scoring
 - scheduler-driven candidate expansion + accepted universe change 후 replay refresh
-- discovered feed / API source에 대한 source automation sweep
+- novelty overlap limit + promotion score를 거치는 Codex theme auto-promotion
+- score / health / diversity cap을 함께 쓰는 discovered feed / API source automation sweep
 
 ## 한계
 

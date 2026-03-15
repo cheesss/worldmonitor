@@ -56,6 +56,8 @@ export interface ThemeAutomationPolicy {
   minSourceCount: number;
   minCodexConfidence: number;
   minAssetCount: number;
+  minPromotionScore: number;
+  maxOverlapWithKnownThemes: number;
   maxPromotionsPerDay: number;
 }
 
@@ -64,6 +66,9 @@ export interface CandidateAutomationPolicy {
   everyMinutes: number;
   maxThemesPerCycle: number;
   minGapSeverity: GapSeverity;
+  minCoverageScore: number;
+  themeCooldownHours: number;
+  maxThemesPerRegionPerCycle: number;
 }
 
 export interface IntelligenceAutomationRegistry {
@@ -127,6 +132,7 @@ export interface IntelligenceAutomationState {
   version: number;
   updatedAt: string;
   lastCandidateExpansionAt?: string | null;
+  candidateThemeHistory?: Record<string, string>;
   datasets: Record<string, DatasetAutomationState>;
   runs: AutomationRunRecord[];
   themeQueue: ThemeDiscoveryQueueItem[];
@@ -156,6 +162,10 @@ function nowIso(): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 function slugify(value: string): string {
@@ -210,6 +220,8 @@ function createDefaultRegistry(): IntelligenceAutomationRegistry {
       minSourceCount: 2,
       minCodexConfidence: 78,
       minAssetCount: 2,
+      minPromotionScore: 72,
+      maxOverlapWithKnownThemes: 0.62,
       maxPromotionsPerDay: 1,
     },
     sourceAutomation: normalizeSourceAutomationPolicy(),
@@ -218,6 +230,9 @@ function createDefaultRegistry(): IntelligenceAutomationRegistry {
       everyMinutes: 180,
       maxThemesPerCycle: 2,
       minGapSeverity: 'elevated',
+      minCoverageScore: 60,
+      themeCooldownHours: 12,
+      maxThemesPerRegionPerCycle: 1,
     },
     datasets: [],
   };
@@ -228,6 +243,7 @@ function defaultState(): IntelligenceAutomationState {
     version: 1,
     updatedAt: nowIso(),
     lastCandidateExpansionAt: null,
+    candidateThemeHistory: {},
     datasets: {},
     runs: [],
     themeQueue: [],
@@ -252,6 +268,8 @@ function normalizeRegistry(raw?: Partial<IntelligenceAutomationRegistry> | null)
       mode: raw?.themeAutomation?.mode === 'manual' || raw?.themeAutomation?.mode === 'guarded-auto' || raw?.themeAutomation?.mode === 'full-auto'
         ? raw.themeAutomation.mode
         : fallback.themeAutomation.mode,
+      minPromotionScore: Math.max(40, Math.min(98, Number(raw?.themeAutomation?.minPromotionScore) || fallback.themeAutomation.minPromotionScore)),
+      maxOverlapWithKnownThemes: Math.max(0.2, Math.min(0.95, Number(raw?.themeAutomation?.maxOverlapWithKnownThemes) || fallback.themeAutomation.maxOverlapWithKnownThemes)),
     },
     sourceAutomation: normalizeSourceAutomationPolicy(raw?.sourceAutomation),
     candidateAutomation: {
@@ -261,6 +279,9 @@ function normalizeRegistry(raw?: Partial<IntelligenceAutomationRegistry> | null)
       minGapSeverity: raw?.candidateAutomation?.minGapSeverity === 'watch' || raw?.candidateAutomation?.minGapSeverity === 'critical'
         ? raw.candidateAutomation.minGapSeverity
         : fallback.candidateAutomation.minGapSeverity,
+      minCoverageScore: Math.max(20, Math.min(98, Number(raw?.candidateAutomation?.minCoverageScore) || fallback.candidateAutomation.minCoverageScore)),
+      themeCooldownHours: Math.max(1, Math.min(168, Number(raw?.candidateAutomation?.themeCooldownHours) || fallback.candidateAutomation.themeCooldownHours)),
+      maxThemesPerRegionPerCycle: Math.max(1, Math.min(4, Number(raw?.candidateAutomation?.maxThemesPerRegionPerCycle) || fallback.candidateAutomation.maxThemesPerRegionPerCycle)),
     },
     datasets: Array.isArray(raw?.datasets)
       ? raw!.datasets!.map((dataset) => ({
@@ -285,6 +306,9 @@ function normalizeState(raw?: Partial<IntelligenceAutomationState> | null): Inte
     version: 1,
     updatedAt: String(raw?.updatedAt || fallback.updatedAt),
     lastCandidateExpansionAt: raw?.lastCandidateExpansionAt || null,
+    candidateThemeHistory: raw?.candidateThemeHistory && typeof raw.candidateThemeHistory === 'object'
+      ? Object.fromEntries(Object.entries(raw.candidateThemeHistory).map(([key, value]) => [key, String(value || '')]))
+      : {},
     datasets: Object.fromEntries(
       Object.entries(raw?.datasets || {}).map(([datasetId, state]) => [
         datasetId,
@@ -464,6 +488,9 @@ function autoPromoteTheme(
   if (queueItem.sourceCount < registry.themeAutomation.minSourceCount) return false;
   if ((proposal.assets || []).length < registry.themeAutomation.minAssetCount) return false;
   if (existingThemes.some((theme) => theme.id === proposal.id)) return false;
+  if (queueItem.overlapWithKnownThemes > registry.themeAutomation.maxOverlapWithKnownThemes) return false;
+  const promotion = computeThemePromotionScore(proposal, queueItem, existingThemes);
+  if (promotion.score < registry.themeAutomation.minPromotionScore) return false;
   if (registry.themeAutomation.mode === 'guarded-auto' && proposal.confidence < registry.themeAutomation.minCodexConfidence) return false;
   return proposal.confidence >= Math.max(52, registry.themeAutomation.minCodexConfidence - 16);
 }
@@ -553,6 +580,81 @@ function gapSeverityRank(value: GapSeverity): number {
   return 1;
 }
 
+function themeRecentlyAttempted(state: IntelligenceAutomationState, themeId: string, cooldownHours: number): boolean {
+  const attemptedAt = state.candidateThemeHistory?.[themeId];
+  if (!attemptedAt) return false;
+  return Date.now() - asTs(attemptedAt) < cooldownHours * 60 * 60 * 1000;
+}
+
+function computeCoveragePriorityScore(args: {
+  themeId: string;
+  snapshot: Awaited<ReturnType<typeof getInvestmentIntelligenceSnapshot>>;
+  state: IntelligenceAutomationState;
+  registry: IntelligenceAutomationRegistry;
+}): { score: number; region: string; reason: string } {
+  const gaps = (args.snapshot?.coverageGaps || []).filter((gap) => gap.themeId === args.themeId);
+  const directMappings = (args.snapshot?.directMappings || []).filter((mapping) => mapping.themeId === args.themeId);
+  const openReviews = (args.snapshot?.candidateReviews || []).filter((review) => review.themeId === args.themeId && review.status === 'open');
+  if (!gaps.length) return { score: 0, region: 'Global', reason: 'no-gaps' };
+
+  const highestSeverity = Math.max(...gaps.map((gap) => gapSeverityRank(gap.severity)));
+  const missingKinds = gaps.reduce((sum, gap) => sum + gap.missingAssetKinds.length, 0);
+  const missingSectors = gaps.reduce((sum, gap) => sum + gap.missingSectors.length, 0);
+  const distinctRegions = Array.from(new Set(gaps.map((gap) => gap.region).filter(Boolean)));
+  const region = distinctRegions[0] || 'Global';
+  let score = highestSeverity * 24
+    + Math.min(18, missingKinds * 6)
+    + Math.min(16, missingSectors * 3)
+    + Math.min(12, openReviews.length * 3)
+    + (directMappings.length === 0 ? 10 : Math.max(0, 8 - (directMappings.length * 2)));
+
+  if (themeRecentlyAttempted(args.state, args.themeId, args.registry.candidateAutomation.themeCooldownHours)) {
+    score -= 18;
+  }
+  return {
+    score: clamp(Math.round(score), 0, 100),
+    region,
+    reason: `severity=${highestSeverity} missingKinds=${missingKinds} missingSectors=${missingSectors} openReviews=${openReviews.length} directMappings=${directMappings.length}`,
+  };
+}
+
+function computeThemePromotionScore(
+  proposal: CodexThemeProposal,
+  queueItem: ThemeDiscoveryQueueItem,
+  existingThemes: InvestmentThemeDefinition[],
+): { score: number; reason: string } {
+  const uniqueKinds = new Set(proposal.assets.map((asset) => asset.assetKind)).size;
+  const uniqueSectors = new Set(proposal.assets.map((asset) => asset.sector)).size;
+  const hasHedge = proposal.assets.some((asset) => asset.role === 'hedge');
+  const overlapPenalty = Math.round(queueItem.overlapWithKnownThemes * 24);
+  const duplicateIdPenalty = existingThemes.some((theme) => theme.id === proposal.id) ? 100 : 0;
+  let score = Math.round(
+    (queueItem.signalScore * 0.45)
+    + (proposal.confidence * 0.25)
+    + Math.min(12, queueItem.sampleCount * 2)
+    + Math.min(10, queueItem.sourceCount * 3)
+    + Math.min(8, queueItem.regionCount * 2)
+    + Math.min(12, uniqueKinds * 4 + uniqueSectors * 2 + (hasHedge ? 2 : 0))
+    - overlapPenalty
+    - duplicateIdPenalty,
+  );
+  score = clamp(score, 0, 100);
+  return {
+    score,
+    reason: `score=${score} overlap=${queueItem.overlapWithKnownThemes.toFixed(2)} assetKinds=${uniqueKinds} sectors=${uniqueSectors}`,
+  };
+}
+
+function themeQueuePriorityScore(queueItem: ThemeDiscoveryQueueItem): number {
+  return clamp(Math.round(
+    (queueItem.signalScore * 0.62)
+    + Math.min(12, queueItem.sampleCount * 2)
+    + Math.min(10, queueItem.sourceCount * 3)
+    + Math.min(8, queueItem.regionCount * 2)
+    - (queueItem.overlapWithKnownThemes * 18),
+  ), 0, 100);
+}
+
 async function runCandidateExpansionSweep(args: {
   registry: IntelligenceAutomationRegistry;
   state: IntelligenceAutomationState;
@@ -571,12 +673,31 @@ async function runCandidateExpansionSweep(args: {
   }
 
   const minSeverity = gapSeverityRank(args.registry.candidateAutomation.minGapSeverity);
-  const candidateThemes = Array.from(new Set(
+  const rankedThemes = Array.from(new Set(
     snapshot.coverageGaps
       .filter((gap) => gapSeverityRank(gap.severity) >= minSeverity)
-      .sort((a, b) => gapSeverityRank(b.severity) - gapSeverityRank(a.severity))
       .map((gap) => gap.themeId),
-  )).slice(0, args.registry.candidateAutomation.maxThemesPerCycle);
+  ))
+    .map((themeId) => ({
+      themeId,
+      ...computeCoveragePriorityScore({
+        themeId,
+        snapshot,
+        state: args.state,
+        registry: args.registry,
+      }),
+    }))
+    .filter((entry) => entry.score >= args.registry.candidateAutomation.minCoverageScore)
+    .sort((a, b) => b.score - a.score || a.themeId.localeCompare(b.themeId));
+
+  const regionCounts = new Map<string, number>();
+  const candidateThemes: string[] = [];
+  for (const entry of rankedThemes) {
+    if (candidateThemes.length >= args.registry.candidateAutomation.maxThemesPerCycle) break;
+    if ((regionCounts.get(entry.region) || 0) >= args.registry.candidateAutomation.maxThemesPerRegionPerCycle) continue;
+    candidateThemes.push(entry.themeId);
+    regionCounts.set(entry.region, (regionCounts.get(entry.region) || 0) + 1);
+  }
 
   const themeIds: string[] = [];
   let acceptedAny = false;
@@ -591,6 +712,10 @@ async function runCandidateExpansionSweep(args: {
         topMappings: snapshot.directMappings.filter((mapping) => mapping.themeId === themeId),
       })
     ), args.state);
+    args.state.candidateThemeHistory = {
+      ...(args.state.candidateThemeHistory || {}),
+      [themeId]: nowIso(),
+    };
     if (!proposals || proposals.length === 0) continue;
     const inserted = await ingestCodexCandidateExpansionProposals(themeId, proposals);
     if (!inserted.length) continue;
@@ -756,7 +881,7 @@ export async function runIntelligenceAutomationCycle(args: {
   let promotionsToday = state.promotedThemes.filter((entry) => sameLocalDay(entry.promotedAt, nowIso())).length;
   for (const queueItem of state.themeQueue
     .filter((item) => item.status === 'open' && item.signalScore >= registry.themeAutomation.minDiscoveryScore)
-    .sort((a, b) => b.signalScore - a.signalScore)
+    .sort((a, b) => themeQueuePriorityScore(b) - themeQueuePriorityScore(a) || b.signalScore - a.signalScore)
     .slice(0, 3)) {
     if (registry.themeAutomation.mode === 'manual') break;
     const releaseThemeLock = await acquireLock(`theme:${queueItem.topicKey}`, registry.defaults.lockTtlMinutes);

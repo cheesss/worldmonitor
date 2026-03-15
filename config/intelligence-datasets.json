@@ -24,6 +24,8 @@
     "minSourceCount": 2,
     "minCodexConfidence": 78,
     "minAssetCount": 2,
+    "minPromotionScore": 72,
+    "maxOverlapWithKnownThemes": 0.62,
     "maxPromotionsPerDay": 1
   },
   "sourceAutomation": {
@@ -34,8 +36,14 @@
     "minApiActivateConfidence": 94,
     "maxDiscoveredActivationsPerCycle": 6,
     "maxApiActivationsPerCycle": 4,
+    "maxDiscoveredActivationsPerCategory": 2,
+    "maxDiscoveredActivationsPerDomain": 1,
+    "maxApiActivationsPerCategory": 2,
+    "maxApiActivationsPerBaseUrl": 1,
     "requireFeedLikeUrl": true,
     "requireHealthyApi": true,
+    "minDiscoveredTopicCount": 2,
+    "cooldownHours": 36,
     "healthRefreshBatch": 12,
     "staleHealthHours": 12
   },
@@ -43,7 +51,10 @@
     "enabled": true,
     "everyMinutes": 180,
     "maxThemesPerCycle": 2,
-    "minGapSeverity": "elevated"
+    "minGapSeverity": "elevated",
+    "minCoverageScore": 60,
+    "themeCooldownHours": 12,
+    "maxThemesPerRegionPerCycle": 1
   },
   "datasets": [
     {

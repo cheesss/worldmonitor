@@ -21,12 +21,12 @@ Run historical fetch, import, replay, walk-forward, source acceptance, candidate
 5. Import into DuckDB archive
 6. Run replay when cadence is due
 7. Run nightly walk-forward when local hour threshold is met
-8. Sweep discovered sources and API sources through guarded auto-accept / auto-activate policy
+8. Sweep discovered sources and API sources through guarded score-based auto-accept / auto-activate policy
 9. Refresh theme discovery queue
 10. Ask Codex for theme proposals only for top queue items
-11. Auto-promote only if policy thresholds pass
-12. Ask Codex for candidate expansion on top coverage gaps
-13. Auto-accept only if universe policy thresholds pass
+11. Auto-promote only if promotion score, overlap, and policy thresholds pass
+12. Ask Codex for candidate expansion on top coverage gaps after scoring, diversity caps, and cooldown checks
+13. Auto-accept only if universe policy score, sector caps, and asset-kind caps pass
 14. Re-run replay if new accepted candidates changed the active universe
 15. Release lock
 16. Apply retention to artifacts and scheduler history
@@ -104,6 +104,8 @@ A theme is auto-promoted only when:
 - source diversity is sufficient
 - Codex confidence clears the threshold
 - at least the minimum number of liquid assets is proposed
+- overlap with the existing theme catalog stays below the configured ceiling
+- promotion score clears the configured floor
 - daily promotion budget is not exhausted
 
 ## Important limitation
@@ -118,10 +120,10 @@ Default mode is `guarded-auto`.
 
 It can:
 
-- auto-approve discovered feed candidates that pass confidence and feed-shape checks
-- auto-activate approved feed candidates when their confidence is high enough
+- auto-approve discovered feed candidates using a composite score, not only raw confidence
+- auto-activate approved feed candidates while enforcing category and domain caps
 - refresh API source health in batches
-- auto-approve and auto-activate API sources when confidence, schema, and health thresholds pass
+- auto-approve and auto-activate API sources using health/schema/ToS/rate-limit signals plus category and base-url caps
 
 This does not remove manual override. It removes the need to click through routine approvals.
 
@@ -131,10 +133,10 @@ The scheduler now looks at coverage gaps after replay and theme promotion.
 
 When the gap policy allows it, the worker:
 
-- selects the highest-priority gap themes
+- ranks gap themes by severity, missing asset kinds, missing sectors, open review pressure, and current mapping depth
 - asks Codex for additional liquid symbols
 - ingests proposals into the candidate review store
-- applies the current universe policy immediately
+- applies the current universe policy immediately using score, sector balance, and asset-kind balance
 - replays again if any newly inserted candidate is auto-accepted
 
 This means investment idea coverage can widen without waiting for a human to press `Ask Codex`.

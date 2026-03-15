@@ -272,7 +272,10 @@ export interface CandidateExpansionReview {
 export interface UniverseExpansionPolicy {
   mode: UniverseExpansionMode;
   minCodexConfidence: number;
+  minAutoApproveScore: number;
   maxAutoApprovalsPerTheme: number;
+  maxAutoApprovalsPerSectorPerTheme: number;
+  maxAutoApprovalsPerAssetKindPerTheme: number;
   requireMarketData: boolean;
   probationCycles: number;
   autoDemoteMisses: number;
@@ -440,7 +443,10 @@ const BANDIT_DIMENSION = 8;
 const DEFAULT_UNIVERSE_EXPANSION_POLICY: UniverseExpansionPolicy = {
   mode: 'guarded-auto',
   minCodexConfidence: 78,
+  minAutoApproveScore: 84,
   maxAutoApprovalsPerTheme: 2,
+  maxAutoApprovalsPerSectorPerTheme: 1,
+  maxAutoApprovalsPerAssetKindPerTheme: 1,
   requireMarketData: true,
   probationCycles: 4,
   autoDemoteMisses: 3,
@@ -795,7 +801,10 @@ function normalizeUniverseExpansionPolicy(policy?: Partial<UniverseExpansionPoli
       ? policy.mode
       : DEFAULT_UNIVERSE_EXPANSION_POLICY.mode,
     minCodexConfidence: clamp(Number(policy?.minCodexConfidence) || DEFAULT_UNIVERSE_EXPANSION_POLICY.minCodexConfidence, 40, 95),
+    minAutoApproveScore: clamp(Number(policy?.minAutoApproveScore) || DEFAULT_UNIVERSE_EXPANSION_POLICY.minAutoApproveScore, 45, 98),
     maxAutoApprovalsPerTheme: clamp(Math.round(Number(policy?.maxAutoApprovalsPerTheme) || DEFAULT_UNIVERSE_EXPANSION_POLICY.maxAutoApprovalsPerTheme), 1, 6),
+    maxAutoApprovalsPerSectorPerTheme: clamp(Math.round(Number(policy?.maxAutoApprovalsPerSectorPerTheme) || DEFAULT_UNIVERSE_EXPANSION_POLICY.maxAutoApprovalsPerSectorPerTheme), 1, 4),
+    maxAutoApprovalsPerAssetKindPerTheme: clamp(Math.round(Number(policy?.maxAutoApprovalsPerAssetKindPerTheme) || DEFAULT_UNIVERSE_EXPANSION_POLICY.maxAutoApprovalsPerAssetKindPerTheme), 1, 4),
     requireMarketData: typeof policy?.requireMarketData === 'boolean' ? policy.requireMarketData : DEFAULT_UNIVERSE_EXPANSION_POLICY.requireMarketData,
     probationCycles: clamp(Math.round(Number(policy?.probationCycles) || DEFAULT_UNIVERSE_EXPANSION_POLICY.probationCycles), 1, 12),
     autoDemoteMisses: clamp(Math.round(Number(policy?.autoDemoteMisses) || DEFAULT_UNIVERSE_EXPANSION_POLICY.autoDemoteMisses), 1, 12),
@@ -1418,22 +1427,99 @@ function countAutoApprovedByTheme(reviews: CandidateExpansionReview[], themeId: 
   return reviews.filter((review) => review.themeId === themeId && review.status === 'accepted' && review.autoApproved).length;
 }
 
-function shouldAutoApproveReview(review: CandidateExpansionReview, policy: UniverseExpansionPolicy, allReviews: CandidateExpansionReview[]): boolean {
-  if (review.status !== 'open') return false;
-  if (policy.mode === 'manual') return false;
-  if (countAutoApprovedByTheme(allReviews, review.themeId) >= policy.maxAutoApprovalsPerTheme) return false;
-  if (policy.requireMarketData && review.requiresMarketData) return false;
-  if (policy.mode === 'guarded-auto') {
-    return review.source === 'codex' && review.confidence >= policy.minCodexConfidence;
+function countAcceptedByThemeSector(reviews: CandidateExpansionReview[], themeId: string, sector: string): number {
+  return reviews.filter((review) =>
+    review.themeId === themeId
+    && review.status === 'accepted'
+    && normalize(review.sector) === normalize(sector),
+  ).length;
+}
+
+function countAcceptedByThemeAssetKind(reviews: CandidateExpansionReview[], themeId: string, assetKind: InvestmentAssetKind): number {
+  return reviews.filter((review) =>
+    review.themeId === themeId
+    && review.status === 'accepted'
+    && review.assetKind === assetKind,
+  ).length;
+}
+
+function countAcceptedByThemeDirection(reviews: CandidateExpansionReview[], themeId: string, direction: InvestmentDirection): number {
+  return reviews.filter((review) =>
+    review.themeId === themeId
+    && review.status === 'accepted'
+    && review.direction === direction,
+  ).length;
+}
+
+interface CandidateAutoApprovalAssessment {
+  approved: boolean;
+  score: number;
+  reason: string;
+}
+
+function assessAutoApprovalReview(
+  review: CandidateExpansionReview,
+  policy: UniverseExpansionPolicy,
+  allReviews: CandidateExpansionReview[],
+): CandidateAutoApprovalAssessment {
+  if (review.status !== 'open') return { approved: false, score: 0, reason: 'not-open' };
+  if (policy.mode === 'manual') return { approved: false, score: 0, reason: 'manual-policy' };
+  if (policy.requireMarketData && review.requiresMarketData) return { approved: false, score: 0, reason: 'market-data-required' };
+
+  const themeApproved = countAutoApprovedByTheme(allReviews, review.themeId);
+  if (themeApproved >= policy.maxAutoApprovalsPerTheme) {
+    return { approved: false, score: 0, reason: 'theme-cap-reached' };
   }
-  return review.confidence >= Math.max(52, policy.minCodexConfidence - 16);
+
+  const acceptedInSector = countAcceptedByThemeSector(allReviews, review.themeId, review.sector);
+  if (acceptedInSector >= policy.maxAutoApprovalsPerSectorPerTheme) {
+    return { approved: false, score: 0, reason: 'sector-cap-reached' };
+  }
+
+  const acceptedInAssetKind = countAcceptedByThemeAssetKind(allReviews, review.themeId, review.assetKind);
+  if (acceptedInAssetKind >= policy.maxAutoApprovalsPerAssetKindPerTheme) {
+    return { approved: false, score: 0, reason: 'asset-kind-cap-reached' };
+  }
+
+  if (policy.mode === 'guarded-auto' && review.source === 'codex' && review.confidence < policy.minCodexConfidence) {
+    return { approved: false, score: review.confidence, reason: 'codex-confidence-too-low' };
+  }
+
+  let score = review.confidence;
+  const sourceBonus = review.source === 'codex'
+    ? 10
+    : review.source === 'market'
+      ? 8
+      : review.source === 'watchlist'
+        ? 6
+        : 2;
+  const roleBonus = review.role === 'hedge' ? 7 : review.role === 'confirm' ? 4 : 1;
+  const signalBonus = Math.min(12, review.supportingSignals.length * 2);
+  const assetKindBonus = review.assetKind === 'etf' ? 5 : review.assetKind === 'commodity' || review.assetKind === 'fx' || review.assetKind === 'rate' ? 4 : 2;
+  const commodityBonus = review.commodity ? 4 : 0;
+  const missingMarketPenalty = review.requiresMarketData ? 14 : 0;
+  const sectorCrowdingPenalty = acceptedInSector * 12;
+  const assetKindCrowdingPenalty = acceptedInAssetKind * 10;
+  const directionCrowdingPenalty = countAcceptedByThemeDirection(allReviews, review.themeId, review.direction) * 4;
+  const themeCrowdingPenalty = themeApproved * 5;
+  score += sourceBonus + roleBonus + signalBonus + assetKindBonus + commodityBonus;
+  score -= missingMarketPenalty + sectorCrowdingPenalty + assetKindCrowdingPenalty + directionCrowdingPenalty + themeCrowdingPenalty;
+  score = clamp(Math.round(score), 0, 100);
+
+  const threshold = policy.mode === 'full-auto'
+    ? Math.max(52, policy.minAutoApproveScore - 12)
+    : policy.minAutoApproveScore;
+  const approved = score >= threshold;
+  const reason = `score=${score} source=${review.source} role=${review.role} sectorFill=${acceptedInSector}/${policy.maxAutoApprovalsPerSectorPerTheme} kindFill=${acceptedInAssetKind}/${policy.maxAutoApprovalsPerAssetKindPerTheme}`;
+  return { approved, score, reason };
 }
 
 function applyUniverseExpansionPolicy(reviews: CandidateExpansionReview[], policy: UniverseExpansionPolicy): CandidateExpansionReview[] {
   const output = reviews.map((review) => ({ ...review }));
   for (let index = 0; index < output.length; index += 1) {
     const review = output[index]!;
-    if (!shouldAutoApproveReview(review, policy, output)) continue;
+    const assessment = assessAutoApprovalReview(review, policy, output);
+    if (!assessment.approved) continue;
     const acceptedAt = nowIso();
     output[index] = {
       ...review,
@@ -1445,7 +1531,7 @@ function applyUniverseExpansionPolicy(reviews: CandidateExpansionReview[], polic
       probationCycles: 0,
       probationHits: 0,
       probationMisses: 0,
-      reason: `${review.reason} Auto-approved by ${policy.mode} policy.`,
+      reason: `${review.reason} Auto-approved by ${policy.mode} policy (${assessment.reason}).`,
       lastUpdatedAt: acceptedAt,
     };
   }
@@ -2534,7 +2620,7 @@ export async function recomputeInvestmentIntelligence(args: {
       `${mappings.length} direct stock or ETF mappings survived ${falsePositive.rejected} false-positive rejects.`,
       `${backtests.length} price-based backtest rows, ${openTracked} open tracked ideas, ${closedTracked} closed samples, and ${learnedMappings} learned mapping priors available.`,
       `${universeCoverage.dynamicApprovedCount} approved expansion candidates, ${universeCoverage.openReviewCount} open review items, and ${universeCoverage.gapCount} current coverage gaps tracked.`,
-      `Universe policy=${universeExpansionPolicy.mode} threshold=${universeExpansionPolicy.minCodexConfidence} requireMarketData=${universeExpansionPolicy.requireMarketData ? 'yes' : 'no'}.`,
+      `Universe policy=${universeExpansionPolicy.mode} scoreThreshold=${universeExpansionPolicy.minAutoApproveScore} codexFloor=${universeExpansionPolicy.minCodexConfidence} requireMarketData=${universeExpansionPolicy.requireMarketData ? 'yes' : 'no'} sectorCap=${universeExpansionPolicy.maxAutoApprovalsPerSectorPerTheme} kindCap=${universeExpansionPolicy.maxAutoApprovalsPerAssetKindPerTheme}.`,
       `${analogs.length} analog checkpoints and ${workflow.filter((step) => step.status === 'ready').length} ready workflow stages available.`,
       `Regime=${args.transmission?.regime?.label || 'unknown'} confidence=${args.transmission?.regime?.confidence ?? 0}.`,
     ],
@@ -2605,7 +2691,7 @@ function syncSnapshotReviewState(): void {
         && !/^Universe policy=/i.test(line),
       ),
       `${reviews.filter((review) => review.status === 'accepted').length} approved expansion candidates, ${reviews.filter((review) => review.status === 'open').length} open review items, and ${currentSnapshot.coverageGaps.length} current coverage gaps tracked.`,
-      `Universe policy=${universeExpansionPolicy.mode} threshold=${universeExpansionPolicy.minCodexConfidence} requireMarketData=${universeExpansionPolicy.requireMarketData ? 'yes' : 'no'}.`,
+      `Universe policy=${universeExpansionPolicy.mode} scoreThreshold=${universeExpansionPolicy.minAutoApproveScore} codexFloor=${universeExpansionPolicy.minCodexConfidence} requireMarketData=${universeExpansionPolicy.requireMarketData ? 'yes' : 'no'} sectorCap=${universeExpansionPolicy.maxAutoApprovalsPerSectorPerTheme} kindCap=${universeExpansionPolicy.maxAutoApprovalsPerAssetKindPerTheme}.`,
     ],
   };
 }

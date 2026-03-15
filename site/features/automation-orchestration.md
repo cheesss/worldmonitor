@@ -36,11 +36,11 @@ Backtests are only useful when they run on a fixed schedule against a known data
 3. Import into bitemporal DuckDB history
 4. Run replay on cadence
 5. Run nightly walk-forward
-6. Sweep source registries through guarded auto-accept / auto-activate policy
+6. Sweep source registries through guarded score-based auto-accept / auto-activate policy
 7. Refresh theme discovery queue from recent frames
 8. Ask Codex for theme proposals only for high-signal queue items
-9. Auto-promote only when guarded thresholds pass
-10. Ask Codex for candidate expansion only on top coverage gaps
+9. Auto-promote only when guarded thresholds, overlap ceiling, and promotion score pass
+10. Ask Codex for candidate expansion only on top scored coverage gaps that clear cooldown and region-balance rules
 11. Re-run replay when accepted candidates changed the active universe
 
 ## Theme discovery
@@ -62,10 +62,10 @@ The worker now sweeps discovered feeds and discovered API sources.
 
 Under `guarded-auto`, it can:
 
-- approve draft feed candidates that already look like valid RSS/Atom endpoints
-- activate approved feed candidates when confidence is high enough
+- approve draft feed candidates using a composite source score instead of raw confidence alone
+- activate approved feed candidates while enforcing category and domain caps
 - refresh API source health in batches
-- promote healthy API candidates from `draft` to `approved` or `active`
+- promote healthy API candidates from `draft` to `approved` or `active` using health/schema/ToS/rate-limit bonuses plus category/base-url caps
 
 Manual override still exists, but routine registry maintenance no longer requires repeated button clicks.
 
@@ -76,7 +76,7 @@ After replay, the worker inspects coverage gaps and can ask Codex for additional
 Those proposals are:
 
 - inserted into the candidate review store
-- immediately re-evaluated against the current universe policy
+- immediately re-evaluated against the current universe policy using score, sector balance, and asset-kind balance
 - replayed again if any candidate is auto-accepted
 
 ## Current policy
@@ -85,9 +85,10 @@ Those proposals are:
 - queue items need repeated samples and source diversity
 - Codex confidence must clear the configured threshold
 - proposals need multiple liquid candidate assets
+- theme promotion also respects novelty overlap and a promotion score floor
 - promoted themes are added to the next replay cycle, not hot-patched into the currently running decision
-- source candidates and API candidates are only auto-activated when confidence and structural checks pass
-- candidate expansion proposals are only auto-accepted when the universe policy clears them
+- source candidates and API candidates are auto-activated only when score and diversity controls pass
+- candidate expansion proposals are auto-accepted only when the universe policy score clears them without overfilling a sector or asset kind
 
 ## Files and commands
 

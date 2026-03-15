@@ -75,7 +75,7 @@ This system is not an auto-trader. Use it as a structured decision-support termi
   - replay / walk-forward backtests
 - Default recommendation:
   - `guarded-auto`
-  - Codex proposals can auto-approve only when the confidence threshold is met and market data exists
+  - Codex proposals now go through a composite auto-approval score, sector caps, and asset-kind caps
 - `full-auto` exists, but it should be treated as an aggressive research mode rather than a default production mode
 - Use the queue like this:
   1. Find a coverage gap.
@@ -134,7 +134,7 @@ This system is not an auto-trader. Use it as a structured decision-support termi
 - Codex-assisted candidate expansion is a review loop, not an auto-execution path.
 - Approved expansions only become live on the next refresh, so they should be treated as queued universe changes.
 - Auto-approved candidates now run through a probation window and can be auto-demoted if they repeatedly fail to produce useful mappings.
-- Source acceptance is now mostly automated under guarded policy, but manual override still exists for exceptional cases.
+- Source acceptance is now mostly automated under guarded policy, but it uses composite source scoring plus category/domain caps rather than raw confidence alone.
 
 ## Unattended automation loop
 
@@ -167,15 +167,17 @@ The backtest stack can now run without daily operator clicks, but only if you wi
 - Codex can also propose additional symbols for coverage gaps after replay.
 - Codex does not blindly decide trades or override the scheduler policy.
 - In `guarded-auto`, deterministic thresholds still gate promotion:
+  - promotion score
   - discovery score
   - sample count
   - source diversity
   - Codex confidence
   - minimum liquid candidate assets
+  - overlap ceiling against existing themes
 - In the same guarded mode, deterministic thresholds also gate:
-  - feed candidate approval and activation
-  - API source approval and activation
-  - candidate symbol auto-acceptance into the active universe
+  - feed candidate approval and activation through composite source scores
+  - API source approval and activation with health/schema/ToS/rate-limit bonuses and diversity caps
+  - candidate symbol auto-acceptance into the active universe through score, sector balance, and asset-kind balance
 - Promoted themes are injected into the next replay cycle. They are not hot-patched into the currently running one.
 - Auto-accepted candidate symbols trigger another replay pass so the next investment snapshot already reflects the expanded universe.
 
