@@ -26,6 +26,25 @@
     "minAssetCount": 2,
     "maxPromotionsPerDay": 1
   },
+  "sourceAutomation": {
+    "mode": "guarded-auto",
+    "minDiscoveredApproveConfidence": 84,
+    "minDiscoveredActivateConfidence": 92,
+    "minApiApproveConfidence": 90,
+    "minApiActivateConfidence": 94,
+    "maxDiscoveredActivationsPerCycle": 6,
+    "maxApiActivationsPerCycle": 4,
+    "requireFeedLikeUrl": true,
+    "requireHealthyApi": true,
+    "healthRefreshBatch": 12,
+    "staleHealthHours": 12
+  },
+  "candidateAutomation": {
+    "enabled": true,
+    "everyMinutes": 180,
+    "maxThemesPerCycle": 2,
+    "minGapSeverity": "elevated"
+  },
   "datasets": [
     {
       "id": "coingecko-btc-core",

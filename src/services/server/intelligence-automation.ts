@@ -7,6 +7,9 @@ import type { HistoricalReplayOptions, HistoricalReplayRun, WalkForwardBacktestO
 import { runHistoricalReplay, runWalkForwardBacktest } from '../historical-intelligence';
 import {
   listBaseInvestmentThemes,
+  getInvestmentIntelligenceSnapshot,
+  getInvestmentThemeDefinition,
+  ingestCodexCandidateExpansionProposals,
   setAutomatedThemeCatalog,
   type InvestmentThemeDefinition,
 } from '../investment-intelligence';
@@ -15,11 +18,18 @@ import {
   type CodexThemeProposal,
   type ThemeDiscoveryQueueItem,
 } from '../theme-discovery';
+import { proposeCandidatesWithCodex } from './codex-candidate-proposer';
 import { proposeThemeWithCodex } from './codex-theme-proposer';
+import {
+  normalizeSourceAutomationPolicy,
+  runSourceAutomationSweep,
+  type SourceAutomationPolicy,
+} from './source-automation';
 
 type HistoricalProvider = 'fred' | 'alfred' | 'gdelt-doc' | 'coingecko' | 'acled';
-type AutomationJobKind = 'fetch' | 'import' | 'replay' | 'walk-forward' | 'theme-discovery' | 'theme-proposer' | 'retention';
+type AutomationJobKind = 'fetch' | 'import' | 'replay' | 'walk-forward' | 'theme-discovery' | 'theme-proposer' | 'candidate-expansion' | 'source-automation' | 'retention';
 type ThemeAutomationMode = 'manual' | 'guarded-auto' | 'full-auto';
+type GapSeverity = 'watch' | 'elevated' | 'critical';
 
 export interface IntelligenceDatasetRegistryEntry {
   id: string;
@@ -49,6 +59,13 @@ export interface ThemeAutomationPolicy {
   maxPromotionsPerDay: number;
 }
 
+export interface CandidateAutomationPolicy {
+  enabled: boolean;
+  everyMinutes: number;
+  maxThemesPerCycle: number;
+  minGapSeverity: GapSeverity;
+}
+
 export interface IntelligenceAutomationRegistry {
   version: number;
   defaults: {
@@ -69,6 +86,8 @@ export interface IntelligenceAutomationRegistry {
     lockTtlMinutes: number;
   };
   themeAutomation: ThemeAutomationPolicy;
+  sourceAutomation: SourceAutomationPolicy;
+  candidateAutomation: CandidateAutomationPolicy;
   datasets: IntelligenceDatasetRegistryEntry[];
 }
 
@@ -107,6 +126,7 @@ interface PromotedThemeState {
 export interface IntelligenceAutomationState {
   version: number;
   updatedAt: string;
+  lastCandidateExpansionAt?: string | null;
   datasets: Record<string, DatasetAutomationState>;
   runs: AutomationRunRecord[];
   themeQueue: ThemeDiscoveryQueueItem[];
@@ -120,6 +140,8 @@ export interface IntelligenceAutomationCycleResult {
   touchedDatasets: string[];
   replayRuns: Array<{ datasetId: string; runId: string; mode: 'replay' | 'walk-forward'; ideaCount: number }>;
   promotedThemes: string[];
+  candidateThemes: string[];
+  sourceAutomation: Awaited<ReturnType<typeof runSourceAutomationSweep>>;
   queueOpenCount: number;
 }
 
@@ -190,6 +212,13 @@ function createDefaultRegistry(): IntelligenceAutomationRegistry {
       minAssetCount: 2,
       maxPromotionsPerDay: 1,
     },
+    sourceAutomation: normalizeSourceAutomationPolicy(),
+    candidateAutomation: {
+      enabled: true,
+      everyMinutes: 180,
+      maxThemesPerCycle: 2,
+      minGapSeverity: 'elevated',
+    },
     datasets: [],
   };
 }
@@ -198,6 +227,7 @@ function defaultState(): IntelligenceAutomationState {
   return {
     version: 1,
     updatedAt: nowIso(),
+    lastCandidateExpansionAt: null,
     datasets: {},
     runs: [],
     themeQueue: [],
@@ -223,6 +253,15 @@ function normalizeRegistry(raw?: Partial<IntelligenceAutomationRegistry> | null)
         ? raw.themeAutomation.mode
         : fallback.themeAutomation.mode,
     },
+    sourceAutomation: normalizeSourceAutomationPolicy(raw?.sourceAutomation),
+    candidateAutomation: {
+      enabled: typeof raw?.candidateAutomation?.enabled === 'boolean' ? raw.candidateAutomation.enabled : fallback.candidateAutomation.enabled,
+      everyMinutes: Math.max(15, Number(raw?.candidateAutomation?.everyMinutes) || fallback.candidateAutomation.everyMinutes),
+      maxThemesPerCycle: Math.max(1, Math.min(8, Number(raw?.candidateAutomation?.maxThemesPerCycle) || fallback.candidateAutomation.maxThemesPerCycle)),
+      minGapSeverity: raw?.candidateAutomation?.minGapSeverity === 'watch' || raw?.candidateAutomation?.minGapSeverity === 'critical'
+        ? raw.candidateAutomation.minGapSeverity
+        : fallback.candidateAutomation.minGapSeverity,
+    },
     datasets: Array.isArray(raw?.datasets)
       ? raw!.datasets!.map((dataset) => ({
         id: String(dataset.id || '').trim(),
@@ -245,6 +284,7 @@ function normalizeState(raw?: Partial<IntelligenceAutomationState> | null): Inte
   return {
     version: 1,
     updatedAt: String(raw?.updatedAt || fallback.updatedAt),
+    lastCandidateExpansionAt: raw?.lastCandidateExpansionAt || null,
     datasets: Object.fromEntries(
       Object.entries(raw?.datasets || {}).map(([datasetId, state]) => [
         datasetId,
@@ -507,6 +547,63 @@ function mergeThemeQueue(state: IntelligenceAutomationState, queue: ThemeDiscove
   state.themeQueue = Array.from(existing.values()).slice(-120);
 }
 
+function gapSeverityRank(value: GapSeverity): number {
+  if (value === 'critical') return 3;
+  if (value === 'elevated') return 2;
+  return 1;
+}
+
+async function runCandidateExpansionSweep(args: {
+  registry: IntelligenceAutomationRegistry;
+  state: IntelligenceAutomationState;
+}): Promise<{ themeIds: string[]; acceptedAny: boolean }> {
+  if (!args.registry.candidateAutomation.enabled) {
+    return { themeIds: [], acceptedAny: false };
+  }
+  if (!shouldRunEvery(args.state.lastCandidateExpansionAt, args.registry.candidateAutomation.everyMinutes)) {
+    return { themeIds: [], acceptedAny: false };
+  }
+
+  const snapshot = await getInvestmentIntelligenceSnapshot();
+  if (!snapshot || snapshot.universePolicy.mode === 'manual') {
+    args.state.lastCandidateExpansionAt = nowIso();
+    return { themeIds: [], acceptedAny: false };
+  }
+
+  const minSeverity = gapSeverityRank(args.registry.candidateAutomation.minGapSeverity);
+  const candidateThemes = Array.from(new Set(
+    snapshot.coverageGaps
+      .filter((gap) => gapSeverityRank(gap.severity) >= minSeverity)
+      .sort((a, b) => gapSeverityRank(b.severity) - gapSeverityRank(a.severity))
+      .map((gap) => gap.themeId),
+  )).slice(0, args.registry.candidateAutomation.maxThemesPerCycle);
+
+  const themeIds: string[] = [];
+  let acceptedAny = false;
+
+  for (const themeId of candidateThemes) {
+    const theme = getInvestmentThemeDefinition(themeId);
+    if (!theme) continue;
+    const proposals = await runWithRetry(themeId, 'candidate-expansion', Math.max(1, args.registry.defaults.maxRetries - 1), async () => (
+      proposeCandidatesWithCodex({
+        theme,
+        gaps: snapshot.coverageGaps.filter((gap) => gap.themeId === themeId),
+        topMappings: snapshot.directMappings.filter((mapping) => mapping.themeId === themeId),
+      })
+    ), args.state);
+    if (!proposals || proposals.length === 0) continue;
+    const inserted = await ingestCodexCandidateExpansionProposals(themeId, proposals);
+    if (!inserted.length) continue;
+    themeIds.push(themeId);
+    if (inserted.some((review) => review.status === 'accepted')) {
+      acceptedAny = true;
+    }
+  }
+
+  args.state.lastCandidateExpansionAt = nowIso();
+  return { themeIds, acceptedAny };
+}
+
 export async function runIntelligenceAutomationCycle(args: {
   registryPath?: string;
   statePath?: string;
@@ -519,6 +616,7 @@ export async function runIntelligenceAutomationCycle(args: {
   const touchedDatasets = new Set<string>();
   const replayRuns: IntelligenceAutomationCycleResult['replayRuns'] = [];
   const promotedThemes: string[] = [];
+  const candidateThemes: string[] = [];
   const enabledDatasets = registry.datasets.filter((dataset) => dataset.enabled);
   const nowMs = Date.now();
 
@@ -650,6 +748,10 @@ export async function runIntelligenceAutomationCycle(args: {
     }
   }
 
+  const sourceAutomation = await runWithRetry('global', 'source-automation', Math.max(1, registry.defaults.maxRetries - 1), async () => (
+    runSourceAutomationSweep(registry.sourceAutomation)
+  ), state);
+
   const knownThemes = [...listBaseInvestmentThemes(), ...state.promotedThemes.map((entry) => entry.theme)];
   let promotionsToday = state.promotedThemes.filter((entry) => sameLocalDay(entry.promotedAt, nowIso())).length;
   for (const queueItem of state.themeQueue
@@ -725,6 +827,34 @@ export async function runIntelligenceAutomationCycle(args: {
     }
   }
 
+  const candidateExpansion = await runCandidateExpansionSweep({ registry, state });
+  candidateThemes.push(...candidateExpansion.themeIds);
+
+  if (candidateExpansion.acceptedAny) {
+    for (const dataset of enabledDatasets) {
+      if (replayTriggeredByTheme.has(dataset.id)) continue;
+      const frames = await loadHistoricalReplayFramesFromDuckDb({
+        dbPath: registry.defaults.dbPath,
+        datasetId: dataset.id,
+        includeWarmup: true,
+        ...dataset.frameLoadOptions,
+      });
+      const rerun = await runWithRetry(dataset.id, 'replay', registry.defaults.maxRetries, async () => {
+        const replayRun = await runHistoricalReplay(frames, {
+          label: `${dataset.label} / candidate-refresh replay`,
+          retainLearningState: false,
+          warmupFrameCount: Number(dataset.replayOptions?.warmupFrameCount) || registry.defaults.warmupFrameCount,
+          horizonsHours: registry.defaults.horizonsHours.slice(),
+          ...dataset.replayOptions,
+        });
+        const datasetState = getDatasetState(state, dataset.id);
+        datasetState.lastReplayAt = nowIso();
+        return replayRun;
+      }, state);
+      replayRuns.push(toReplaySummary(dataset.id, rerun));
+    }
+  }
+
   for (const dataset of enabledDatasets) {
     await pruneArtifacts(path.resolve(registry.defaults.artifactDir, dataset.id), registry.defaults.artifactRetentionCount, registry.defaults.retentionDays);
   }
@@ -739,6 +869,8 @@ export async function runIntelligenceAutomationCycle(args: {
     touchedDatasets: Array.from(touchedDatasets),
     replayRuns,
     promotedThemes,
+    candidateThemes,
+    sourceAutomation,
     queueOpenCount: state.themeQueue.filter((item) => item.status === 'open').length,
   };
 }

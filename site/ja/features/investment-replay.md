@@ -35,6 +35,8 @@ owner: core
 - coverage-aware universe の要約、review queue、gap 追跡
 - 承認された動的候補が次の refresh とその後のバックテストに参加
 - manual / guarded-auto / full-auto の universe policy モード
+- scheduler が coverage gap に対して Codex candidate expansion を自動実行可能
+- source registry 候補も guarded policy 下で自動承認 / 自動有効化される
 
 ## 主な UI 面
 
@@ -55,6 +57,8 @@ owner: core
 - core と approved expansion 資産を合わせて評価する deterministic ranking
 - Codex-assisted candidate expansion review queue
 - guarded auto-approval と probation / auto-demotion
+- scheduler-driven candidate expansion と accepted universe change 後の replay refresh
+- discovered feed / API source に対する source automation sweep
 
 ## 制限
 

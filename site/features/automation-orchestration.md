@@ -20,8 +20,10 @@ Runs the historical intelligence loop without daily operator intervention:
 - fetch -> import -> replay
 - nightly walk-forward
 - lock, retry, and retention handling
+- source registry auto-accept and auto-activation sweeps
 - theme discovery queue
 - guarded Codex theme proposals
+- guarded Codex candidate expansion for coverage gaps
 
 ## Why it exists
 
@@ -34,9 +36,12 @@ Backtests are only useful when they run on a fixed schedule against a known data
 3. Import into bitemporal DuckDB history
 4. Run replay on cadence
 5. Run nightly walk-forward
-6. Refresh theme discovery queue from recent frames
-7. Ask Codex for theme proposals only for high-signal queue items
-8. Auto-promote only when guarded thresholds pass
+6. Sweep source registries through guarded auto-accept / auto-activate policy
+7. Refresh theme discovery queue from recent frames
+8. Ask Codex for theme proposals only for high-signal queue items
+9. Auto-promote only when guarded thresholds pass
+10. Ask Codex for candidate expansion only on top coverage gaps
+11. Re-run replay when accepted candidates changed the active universe
 
 ## Theme discovery
 
@@ -51,6 +56,29 @@ It looks for:
 
 Codex is not the direct execution engine here. It proposes reusable backtest themes. The scheduler then applies deterministic promotion gates.
 
+## Source automation
+
+The worker now sweeps discovered feeds and discovered API sources.
+
+Under `guarded-auto`, it can:
+
+- approve draft feed candidates that already look like valid RSS/Atom endpoints
+- activate approved feed candidates when confidence is high enough
+- refresh API source health in batches
+- promote healthy API candidates from `draft` to `approved` or `active`
+
+Manual override still exists, but routine registry maintenance no longer requires repeated button clicks.
+
+## Candidate expansion
+
+After replay, the worker inspects coverage gaps and can ask Codex for additional liquid symbols.
+
+Those proposals are:
+
+- inserted into the candidate review store
+- immediately re-evaluated against the current universe policy
+- replayed again if any candidate is auto-accepted
+
 ## Current policy
 
 - default mode: `guarded-auto`
@@ -58,6 +86,8 @@ Codex is not the direct execution engine here. It proposes reusable backtest the
 - Codex confidence must clear the configured threshold
 - proposals need multiple liquid candidate assets
 - promoted themes are added to the next replay cycle, not hot-patched into the currently running decision
+- source candidates and API candidates are only auto-activated when confidence and structural checks pass
+- candidate expansion proposals are only auto-accepted when the universe policy clears them
 
 ## Files and commands
 
@@ -66,6 +96,8 @@ Codex is not the direct execution engine here. It proposes reusable backtest the
 - scheduler service: `src/services/server/intelligence-automation.ts`
 - theme discovery: `src/services/theme-discovery.ts`
 - Codex theme proposer: `src/services/server/codex-theme-proposer.ts`
+- Codex candidate proposer: `src/services/server/codex-candidate-proposer.ts`
+- source automation: `src/services/server/source-automation.ts`
 
 Commands:
 

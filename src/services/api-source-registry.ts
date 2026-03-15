@@ -4,6 +4,7 @@ import { getPersistentCache, setPersistentCache } from './persistent-cache';
 import { logSourceOpsEvent } from './source-ops-log';
 
 export type ApiSourceStatus = 'draft' | 'approved' | 'active' | 'rejected';
+export type ApiSourceActor = 'playwright' | 'codex-playwright' | 'manual' | 'heuristic' | 'system';
 
 export interface ApiSourceRecord {
   id: string;
@@ -200,6 +201,17 @@ export async function listApiSourceRegistry(): Promise<ApiSourceRecord[]> {
 }
 
 export async function setApiSourceStatus(id: string, status: ApiSourceStatus): Promise<ApiSourceRecord | null> {
+  return setApiSourceStatusWithMeta(id, status);
+}
+
+export async function setApiSourceStatusWithMeta(
+  id: string,
+  status: ApiSourceStatus,
+  options: {
+    actor?: ApiSourceActor;
+    note?: string;
+  } = {},
+): Promise<ApiSourceRecord | null> {
   await ensureLoaded();
   const existing = apiSourceMap.get(id);
   if (!existing) return null;
@@ -213,9 +225,9 @@ export async function setApiSourceStatus(id: string, status: ApiSourceStatus): P
   await logSourceOpsEvent({
     kind: 'api',
     action: 'status-change',
-    actor: 'manual',
+    actor: options.actor || 'manual',
     title: next.name,
-    detail: `API source -> ${status}`,
+    detail: (options.note || `API source -> ${status}`).slice(0, 220),
     status,
     category: next.category,
     url: next.sampleUrl,

@@ -134,6 +134,7 @@ This system is not an auto-trader. Use it as a structured decision-support termi
 - Codex-assisted candidate expansion is a review loop, not an auto-execution path.
 - Approved expansions only become live on the next refresh, so they should be treated as queued universe changes.
 - Auto-approved candidates now run through a probation window and can be auto-demoted if they repeatedly fail to produce useful mappings.
+- Source acceptance is now mostly automated under guarded policy, but manual override still exists for exceptional cases.
 
 ## Unattended automation loop
 
@@ -156,10 +157,14 @@ The backtest stack can now run without daily operator clicks, but only if you wi
 5. Refresh the theme discovery queue from replay frames
 6. Ask Codex for new theme proposals only on high-signal queue items
 7. Auto-promote only when guarded thresholds pass
+8. Sweep discovered sources and API sources through source automation policy
+9. Ask Codex for candidate expansion on top coverage gaps
+10. Auto-accept only when universe thresholds pass, then replay again if the active universe changed
 
 ### What Codex does and does not do
 
 - Codex can now propose new backtest themes from repeated unmapped motifs.
+- Codex can also propose additional symbols for coverage gaps after replay.
 - Codex does not blindly decide trades or override the scheduler policy.
 - In `guarded-auto`, deterministic thresholds still gate promotion:
   - discovery score
@@ -167,7 +172,12 @@ The backtest stack can now run without daily operator clicks, but only if you wi
   - source diversity
   - Codex confidence
   - minimum liquid candidate assets
+- In the same guarded mode, deterministic thresholds also gate:
+  - feed candidate approval and activation
+  - API source approval and activation
+  - candidate symbol auto-acceptance into the active universe
 - Promoted themes are injected into the next replay cycle. They are not hot-patched into the currently running one.
+- Auto-accepted candidate symbols trigger another replay pass so the next investment snapshot already reflects the expanded universe.
 
 ### Recommended operating mode
 

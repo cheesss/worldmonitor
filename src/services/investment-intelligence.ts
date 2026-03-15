@@ -2648,7 +2648,7 @@ export async function setCandidateExpansionReviewStatus(
   return { ...next, supportingSignals: next.supportingSignals.slice() };
 }
 
-interface LocalCodexCandidateProposal {
+export interface CodexCandidateExpansionProposal {
   symbol: string;
   assetName?: string;
   assetKind?: InvestmentAssetKind;
@@ -2662,56 +2662,42 @@ interface LocalCodexCandidateProposal {
 }
 
 interface LocalCodexCandidateExpansionResponse {
-  proposals?: LocalCodexCandidateProposal[];
+  proposals?: CodexCandidateExpansionProposal[];
 }
 
-export async function requestCodexCandidateExpansion(themeId: string): Promise<CandidateExpansionReview[]> {
+export function getInvestmentThemeDefinition(themeId: string): InvestmentThemeDefinition | null {
+  const theme = getThemeRule(themeId);
+  if (!theme) return null;
+  return {
+    ...theme,
+    triggers: theme.triggers.slice(),
+    sectors: theme.sectors.slice(),
+    commodities: theme.commodities.slice(),
+    invalidation: theme.invalidation.slice(),
+    assets: getEffectiveThemeAssets(theme).map((asset) => ({ ...asset })),
+  };
+}
+
+function applyCurrentUniversePolicyToReviews(): void {
+  const applied = applyUniverseExpansionPolicy(
+    Array.from(candidateReviews.values()).map((review) => normalizeCandidateReview(review)),
+    universeExpansionPolicy,
+  );
+  candidateReviews = new Map(applied.map((review) => [review.id, review] as const));
+}
+
+export async function ingestCodexCandidateExpansionProposals(
+  themeId: string,
+  proposals: CodexCandidateExpansionProposal[],
+): Promise<CandidateExpansionReview[]> {
   await ensureLoaded();
   const theme = getThemeRule(themeId);
   if (!theme || !currentSnapshot) return [];
 
-  const themeMappings = currentSnapshot.directMappings
-    .filter((mapping) => mapping.themeId === themeId)
-    .slice(0, 8)
-    .map((mapping) => ({
-      symbol: mapping.symbol,
-      assetName: mapping.assetName,
-      assetKind: mapping.assetKind,
-      sector: mapping.sector,
-      commodity: mapping.commodity,
-      direction: mapping.direction,
-      role: mapping.role,
-      conviction: mapping.conviction,
-      falsePositiveRisk: mapping.falsePositiveRisk,
-      transferEntropy: mapping.transferEntropy ?? 0,
-    }));
-  const watchlist = getMarketWatchlistEntries().slice(0, 20);
-  const response = await fetch('/api/local-codex-candidate-expansion', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      themeId: theme.id,
-      themeLabel: theme.label,
-      thesis: theme.thesis,
-      timeframe: theme.timeframe,
-      triggers: theme.triggers.slice(0, 12),
-      sectors: theme.sectors,
-      commodities: theme.commodities,
-      invalidation: theme.invalidation,
-      topMappings: themeMappings,
-      watchlist,
-      existingSymbols: getEffectiveThemeAssets(theme).map((asset) => asset.symbol),
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`Codex candidate expansion failed: ${response.status}`);
-  }
-  const payload = await response.json() as LocalCodexCandidateExpansionResponse;
-  const proposals = Array.isArray(payload.proposals) ? payload.proposals : [];
   const existingAssets = new Set(getEffectiveThemeAssets(theme).map(themeAssetKey));
   const inserted: CandidateExpansionReview[] = [];
 
-  for (const proposal of proposals.slice(0, 10)) {
+  for (const proposal of (proposals || []).slice(0, 10)) {
     const symbol = String(proposal.symbol || '').trim().toUpperCase();
     if (!symbol) continue;
     const direction = proposal.direction || 'watch';
@@ -2758,12 +2744,68 @@ export async function requestCodexCandidateExpansion(themeId: string): Promise<C
       lastUpdatedAt: nowIso(),
     };
     candidateReviews.set(reviewId, next);
-    inserted.push({ ...next, supportingSignals: next.supportingSignals.slice() });
+  }
+
+  applyCurrentUniversePolicyToReviews();
+
+  for (const proposal of (proposals || []).slice(0, 10)) {
+    const symbol = String(proposal.symbol || '').trim().toUpperCase();
+    if (!symbol) continue;
+    const direction = proposal.direction || 'watch';
+    const role = proposal.role || (direction === 'hedge' ? 'hedge' : 'confirm');
+    const reviewId = candidateReviewId(theme.id, symbol, direction, role);
+    const stored = candidateReviews.get(reviewId);
+    if (stored) inserted.push({ ...stored, supportingSignals: stored.supportingSignals.slice() });
   }
 
   syncSnapshotReviewState();
   await persist();
   return inserted;
+}
+
+export async function requestCodexCandidateExpansion(themeId: string): Promise<CandidateExpansionReview[]> {
+  await ensureLoaded();
+  const theme = getThemeRule(themeId);
+  if (!theme || !currentSnapshot) return [];
+
+  const themeMappings = currentSnapshot.directMappings
+    .filter((mapping) => mapping.themeId === themeId)
+    .slice(0, 8)
+    .map((mapping) => ({
+      symbol: mapping.symbol,
+      assetName: mapping.assetName,
+      assetKind: mapping.assetKind,
+      sector: mapping.sector,
+      commodity: mapping.commodity,
+      direction: mapping.direction,
+      role: mapping.role,
+      conviction: mapping.conviction,
+      falsePositiveRisk: mapping.falsePositiveRisk,
+      transferEntropy: mapping.transferEntropy ?? 0,
+    }));
+  const watchlist = getMarketWatchlistEntries().slice(0, 20);
+  const response = await fetch('/api/local-codex-candidate-expansion', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      themeId: theme.id,
+      themeLabel: theme.label,
+      thesis: theme.thesis,
+      timeframe: theme.timeframe,
+      triggers: theme.triggers.slice(0, 12),
+      sectors: theme.sectors,
+      commodities: theme.commodities,
+      invalidation: theme.invalidation,
+      topMappings: themeMappings,
+      watchlist,
+      existingSymbols: getEffectiveThemeAssets(theme).map((asset) => asset.symbol),
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Codex candidate expansion failed: ${response.status}`);
+  }
+  const payload = await response.json() as LocalCodexCandidateExpansionResponse;
+  return ingestCodexCandidateExpansionProposals(themeId, Array.isArray(payload.proposals) ? payload.proposals : []);
 }
 
 export async function listMappingPerformanceStats(limit = 160): Promise<MappingPerformanceStats[]> {

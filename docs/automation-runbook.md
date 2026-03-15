@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Run historical fetch, import, replay, walk-forward, and theme discovery without daily operator intervention.
+Run historical fetch, import, replay, walk-forward, source acceptance, candidate expansion, and theme discovery without daily operator intervention.
 
 ## Files
 
@@ -21,11 +21,15 @@ Run historical fetch, import, replay, walk-forward, and theme discovery without 
 5. Import into DuckDB archive
 6. Run replay when cadence is due
 7. Run nightly walk-forward when local hour threshold is met
-8. Refresh theme discovery queue
-9. Ask Codex for theme proposals only for top queue items
-10. Auto-promote only if policy thresholds pass
-11. Release lock
-12. Apply retention to artifacts and scheduler history
+8. Sweep discovered sources and API sources through guarded auto-accept / auto-activate policy
+9. Refresh theme discovery queue
+10. Ask Codex for theme proposals only for top queue items
+11. Auto-promote only if policy thresholds pass
+12. Ask Codex for candidate expansion on top coverage gaps
+13. Auto-accept only if universe policy thresholds pass
+14. Re-run replay if new accepted candidates changed the active universe
+15. Release lock
+16. Apply retention to artifacts and scheduler history
 
 ## Commands
 
@@ -104,4 +108,33 @@ A theme is auto-promoted only when:
 
 ## Important limitation
 
-Codex can propose backtest themes, but it is still not the final execution engine. The scheduler policy remains the deterministic gate.
+Codex can propose backtest themes and candidate assets, but it is still not the final execution engine. The scheduler policy and universe policy remain the deterministic gates.
+
+## Source automation
+
+The scheduler now also runs a source registry sweep.
+
+Default mode is `guarded-auto`.
+
+It can:
+
+- auto-approve discovered feed candidates that pass confidence and feed-shape checks
+- auto-activate approved feed candidates when their confidence is high enough
+- refresh API source health in batches
+- auto-approve and auto-activate API sources when confidence, schema, and health thresholds pass
+
+This does not remove manual override. It removes the need to click through routine approvals.
+
+## Candidate expansion automation
+
+The scheduler now looks at coverage gaps after replay and theme promotion.
+
+When the gap policy allows it, the worker:
+
+- selects the highest-priority gap themes
+- asks Codex for additional liquid symbols
+- ingests proposals into the candidate review store
+- applies the current universe policy immediately
+- replays again if any newly inserted candidate is auto-accepted
+
+This means investment idea coverage can widen without waiting for a human to press `Ask Codex`.

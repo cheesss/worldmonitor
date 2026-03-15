@@ -32,6 +32,7 @@ export interface FeedSourceOverride {
 
 export type DiscoveredSourceStatus = 'draft' | 'approved' | 'active' | 'rejected';
 export type DiscoveredBy = 'playwright' | 'codex-playwright' | 'manual' | 'heuristic';
+export type DiscoveredSourceActor = DiscoveredBy | 'system';
 
 export interface DiscoveredSourceRecord {
   id: string;
@@ -329,6 +330,10 @@ export async function addDiscoveredSource(input: {
 export async function setDiscoveredSourceStatus(
   id: string,
   status: DiscoveredSourceStatus,
+  options: {
+    actor?: DiscoveredSourceActor;
+    note?: string;
+  } = {},
 ): Promise<DiscoveredSourceRecord | null> {
   await ensureLoaded();
   const existing = discoveredSources.get(id);
@@ -343,9 +348,9 @@ export async function setDiscoveredSourceStatus(
   await logSourceOpsEvent({
     kind: 'source',
     action: 'status-change',
-    actor: 'manual',
+    actor: options.actor || 'manual',
     title: next.feedName,
-    detail: `Discovered source -> ${status}`,
+    detail: (options.note || `Discovered source -> ${status}`).slice(0, 220),
     status,
     category: next.category,
     url: next.url,

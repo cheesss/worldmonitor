@@ -12,5 +12,6 @@ owner: core
 
 # 업데이트
 
+- [2026-03: 자동 소스 승인과 후보 확장](/ko/updates/2026-03-autonomous-ops-tightening)
 - [2026-03: 자동화와 테마 발견](/ko/updates/2026-03-automation-theme-discovery)
 - [2026-03: 문서 사이트 공개와 공개 정책 정리](/ko/updates/2026-03-docs-launch)
