@@ -2290,6 +2290,57 @@ function enrichIdeaCards(
   });
 }
 
+function scoreIdeaCardTriage(card: InvestmentIdeaCard): number {
+  const convictionScore = card.conviction * 0.42;
+  const fpScore = (100 - card.falsePositiveRisk) * 0.26;
+  const evidenceScore = Math.min(10, card.evidence.length * 3 + card.triggers.length);
+  const transmissionScore = Math.min(10, card.transmissionPath.length * 2);
+  const symbolScore = Math.min(8, card.symbols.length * 2);
+  const analogScore = Math.min(8, card.analogRefs.length * 3);
+  const backtestScore = (card.backtestHitRate != null ? Math.min(10, card.backtestHitRate * 0.14) : 0)
+    + (card.backtestAvgReturnPct != null ? Math.min(8, Math.max(0, card.backtestAvgReturnPct) * 1.6) : 0);
+  const directionPenalty = card.direction === 'watch' ? 10 : 0;
+  const lowEvidencePenalty = card.evidence.length <= 1 && card.triggers.length <= 1 ? 8 : 0;
+  const veryHighFpPenalty = card.falsePositiveRisk >= 82 ? 14 : 0;
+  return clamp(
+    Math.round(
+      convictionScore
+      + fpScore
+      + evidenceScore
+      + transmissionScore
+      + symbolScore
+      + analogScore
+      + backtestScore
+      - directionPenalty
+      - lowEvidencePenalty
+      - veryHighFpPenalty,
+    ),
+    0,
+    100,
+  );
+}
+
+function autoTriageIdeaCards(ideaCards: InvestmentIdeaCard[]): { kept: InvestmentIdeaCard[]; suppressedCount: number } {
+  const scored = ideaCards.map((card) => ({ card, score: scoreIdeaCardTriage(card) }))
+    .sort((a, b) => b.score - a.score || b.card.conviction - a.card.conviction || a.card.falsePositiveRisk - b.card.falsePositiveRisk);
+  const kept = scored.filter(({ card, score }) => {
+    if (card.direction !== 'watch' && score >= 44) return true;
+    if (card.direction === 'watch' && score >= 56) return true;
+    if ((card.backtestHitRate || 0) >= 58 && (card.backtestAvgReturnPct || 0) > 0.4) return true;
+    return false;
+  }).map(({ card }) => card);
+  if (kept.length === 0 && scored.length > 0) {
+    return {
+      kept: scored.slice(0, Math.min(2, scored.length)).map(({ card }) => card),
+      suppressedCount: Math.max(0, scored.length - Math.min(2, scored.length)),
+    };
+  }
+  return {
+    kept,
+    suppressedCount: Math.max(0, scored.length - kept.length),
+  };
+}
+
 function buildIdeaCards(mappings: DirectAssetMapping[], analogs: HistoricalAnalog[]): InvestmentIdeaCard[] {
   const grouped = new Map<string, DirectAssetMapping[]>();
   for (const mapping of mappings) {
@@ -2589,7 +2640,9 @@ export async function recomputeInvestmentIntelligence(args: {
   });
   candidateReviews = new Map(reviews.map((review) => [review.id, review] as const));
   const sensitivity = buildSensitivityRows(mappings, backtests, tracked);
-  const ideaCards = enrichIdeaCards(baseIdeaCards, tracked, backtests);
+  const enrichedIdeaCards = enrichIdeaCards(baseIdeaCards, tracked, backtests);
+  const ideaTriage = autoTriageIdeaCards(enrichedIdeaCards);
+  const ideaCards = ideaTriage.kept;
   const workflow = buildWorkflow({ falsePositive, mappings, ideaCards, analogs, sensitivity, trackedIdeas: tracked, backtests });
   const coverageGaps = buildCoverageGaps({ candidates: kept, reviews });
   const universeCoverage = buildUniverseCoverageSummary({ candidates: kept, mappings, reviews, gaps: coverageGaps });
@@ -2619,6 +2672,7 @@ export async function recomputeInvestmentIntelligence(args: {
       `${ideaCards.length} idea cards generated across ${sensitivity.length} sector channels.`,
       `${mappings.length} direct stock or ETF mappings survived ${falsePositive.rejected} false-positive rejects.`,
       `${backtests.length} price-based backtest rows, ${openTracked} open tracked ideas, ${closedTracked} closed samples, and ${learnedMappings} learned mapping priors available.`,
+      `${ideaTriage.suppressedCount} low-quality idea cards were auto-suppressed before the operator view.`,
       `${universeCoverage.dynamicApprovedCount} approved expansion candidates, ${universeCoverage.openReviewCount} open review items, and ${universeCoverage.gapCount} current coverage gaps tracked.`,
       `Universe policy=${universeExpansionPolicy.mode} scoreThreshold=${universeExpansionPolicy.minAutoApproveScore} codexFloor=${universeExpansionPolicy.minCodexConfidence} requireMarketData=${universeExpansionPolicy.requireMarketData ? 'yes' : 'no'} sectorCap=${universeExpansionPolicy.maxAutoApprovalsPerSectorPerTheme} kindCap=${universeExpansionPolicy.maxAutoApprovalsPerAssetKindPerTheme}.`,
       `${analogs.length} analog checkpoints and ${workflow.filter((step) => step.status === 'ready').length} ready workflow stages available.`,

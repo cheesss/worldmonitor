@@ -38,6 +38,8 @@ owner: core
 - scheduler が coverage gap に対して Codex candidate expansion を自動実行可能
 - source registry 候補も guarded score + diversity policy 下で自動承認 / 自動有効化される
 - candidate auto-approval は composite score と sector / asset-kind cap を使う
+- 弱い theme motif と低信号 autonomous keyword を scheduler が自動で retire / reject できる
+- 弱い idea card を operator view の前に自動 suppress できる
 
 ## 主な UI 面
 
@@ -62,6 +64,8 @@ owner: core
 - scheduler-driven candidate expansion と accepted universe change 後の replay refresh
 - novelty overlap limit と promotion score を使う Codex theme auto-promotion
 - score / health / diversity cap を使う discovered feed / API source automation sweep
+- autonomous keyword lifecycle review と theme queue hygiene
+- pre-render idea-card triage と suppression
 
 ## 制限
 

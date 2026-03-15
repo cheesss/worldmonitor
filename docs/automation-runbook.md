@@ -22,14 +22,16 @@ Run historical fetch, import, replay, walk-forward, source acceptance, candidate
 6. Run replay when cadence is due
 7. Run nightly walk-forward when local hour threshold is met
 8. Sweep discovered sources and API sources through guarded score-based auto-accept / auto-activate policy
-9. Refresh theme discovery queue
-10. Ask Codex for theme proposals only for top queue items
-11. Auto-promote only if promotion score, overlap, and policy thresholds pass
-12. Ask Codex for candidate expansion on top coverage gaps after scoring, diversity caps, and cooldown checks
-13. Auto-accept only if universe policy score, sector caps, and asset-kind caps pass
-14. Re-run replay if new accepted candidates changed the active universe
-15. Release lock
-16. Apply retention to artifacts and scheduler history
+9. Run keyword lifecycle review so low-signal and stale autonomous keywords are retired automatically
+10. Refresh theme discovery queue
+11. Auto-reject low-signal, over-overlapping, or stale low-score queue items
+12. Ask Codex for theme proposals only for top queue items
+13. Auto-promote only if promotion score, overlap, and policy thresholds pass
+14. Ask Codex for candidate expansion on top coverage gaps after scoring, diversity caps, and cooldown checks
+15. Auto-accept only if universe policy score, sector caps, and asset-kind caps pass
+16. Re-run replay if new accepted candidates changed the active universe
+17. Release lock
+18. Apply retention to artifacts and scheduler history
 
 ## Commands
 
@@ -80,6 +82,12 @@ The discovery queue is built from replay-frame motifs that repeat across:
 - regions
 
 and do not overlap too much with the current theme catalog.
+
+The queue is also auto-cleaned now. The scheduler can reject:
+
+- low-signal motifs that look like weak keywords rather than reusable themes
+- motifs whose overlap with the current theme catalog is too high
+- stale low-score motifs that age without gaining enough signal
 
 ### Codex theme proposer
 
@@ -140,3 +148,17 @@ When the gap policy allows it, the worker:
 - replays again if any newly inserted candidate is auto-accepted
 
 This means investment idea coverage can widen without waiting for a human to press `Ask Codex`.
+
+## Idea triage
+
+The investment snapshot now auto-triages idea cards before the operator view is rendered.
+
+Weak cards can be suppressed when they combine:
+
+- low conviction
+- high false-positive risk
+- weak evidence or trigger count
+- weak transmission support
+- weak analog or backtest support
+
+This reduces the need for manual idea filtering in the dashboard.

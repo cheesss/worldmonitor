@@ -21,6 +21,7 @@ Runs the historical intelligence loop without daily operator intervention:
 - nightly walk-forward
 - lock, retry, and retention handling
 - source registry auto-accept and auto-activation sweeps
+- keyword lifecycle review for autonomous keywords
 - theme discovery queue
 - guarded Codex theme proposals
 - guarded Codex candidate expansion for coverage gaps
@@ -37,11 +38,13 @@ Backtests are only useful when they run on a fixed schedule against a known data
 4. Run replay on cadence
 5. Run nightly walk-forward
 6. Sweep source registries through guarded score-based auto-accept / auto-activate policy
-7. Refresh theme discovery queue from recent frames
-8. Ask Codex for theme proposals only for high-signal queue items
-9. Auto-promote only when guarded thresholds, overlap ceiling, and promotion score pass
-10. Ask Codex for candidate expansion only on top scored coverage gaps that clear cooldown and region-balance rules
-11. Re-run replay when accepted candidates changed the active universe
+7. Review autonomous keyword lifecycle and retire low-signal or stale terms
+8. Refresh theme discovery queue from recent frames
+9. Auto-reject weak queue items before they become a persistent operator backlog
+10. Ask Codex for theme proposals only for high-signal queue items
+11. Auto-promote only when guarded thresholds, overlap ceiling, and promotion score pass
+12. Ask Codex for candidate expansion only on top scored coverage gaps that clear cooldown and region-balance rules
+13. Re-run replay when accepted candidates changed the active universe
 
 ## Theme discovery
 
@@ -55,6 +58,8 @@ It looks for:
 - low overlap with the current theme catalog
 
 Codex is not the direct execution engine here. It proposes reusable backtest themes. The scheduler then applies deterministic promotion gates.
+
+Low-signal motifs are also auto-cleaned now. The unattended loop can reject motifs that look like weak keyword noise, overlap too heavily with the current theme catalog, or stay weak for too long.
 
 ## Source automation
 
@@ -78,6 +83,12 @@ Those proposals are:
 - inserted into the candidate review store
 - immediately re-evaluated against the current universe policy using score, sector balance, and asset-kind balance
 - replayed again if any candidate is auto-accepted
+
+## Idea triage
+
+The investment snapshot now auto-suppresses weak idea cards before the operator sees them.
+
+This reduces manual filtering by removing cards that combine weak conviction, weak evidence, weak transmission, and high false-positive risk.
 
 ## Current policy
 

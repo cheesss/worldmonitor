@@ -12,6 +12,7 @@
     "replayEveryMinutes": 60,
     "walkForwardLocalHour": 2,
     "themeDiscoveryEveryMinutes": 180,
+    "keywordLifecycleEveryMinutes": 360,
     "maxRetries": 3,
     "retentionDays": 30,
     "artifactRetentionCount": 24,

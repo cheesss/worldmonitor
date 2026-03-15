@@ -1,4 +1,5 @@
 import type { HistoricalReplayFrame } from './historical-intelligence';
+import { isLowSignalKeywordTerm } from './keyword-registry';
 
 export interface KnownThemeCatalogEntry {
   id: string;
@@ -111,12 +112,12 @@ function extractPhrases(text: string): string[] {
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
     if (token && token.length >= 6) {
-      phrases.add(token);
+      if (!isLowSignalKeywordTerm(token)) phrases.add(token);
     }
     const bigram = tokens.slice(index, index + 2).join(' ').trim();
-    if (bigram.split(' ').length === 2) phrases.add(bigram);
+    if (bigram.split(' ').length === 2 && !isLowSignalKeywordTerm(bigram)) phrases.add(bigram);
     const trigram = tokens.slice(index, index + 3).join(' ').trim();
-    if (trigram.split(' ').length === 3) phrases.add(trigram);
+    if (trigram.split(' ').length === 3 && !isLowSignalKeywordTerm(trigram)) phrases.add(trigram);
   }
   return Array.from(phrases);
 }
@@ -223,7 +224,8 @@ export function discoverThemeQueue(
 
   const previousByKey = new Map(previousQueue.map((item) => [item.topicKey, item] as const));
   const discovered = Array.from(aggregates.entries())
-    .map(([phrase, aggregate]) => {
+    .flatMap(([phrase, aggregate]) => {
+      if (isLowSignalKeywordTerm(phrase)) return [];
       const overlap = themeOverlapScore(phrase, knownThemePhrases);
       const sampleScore = aggregate.sampleCount * 11;
       const sourceScore = aggregate.sources.size * 9;
@@ -232,7 +234,7 @@ export function discoverThemeQueue(
       const signalScore = clamp(Math.round(sampleScore + sourceScore + regionScore - noveltyPenalty), 0, 100);
       const topicKey = slugify(phrase);
       const existing = previousByKey.get(topicKey);
-      return {
+      const item = {
         id: existing?.id || `theme-discovery:${topicKey}`,
         topicKey,
         label: existing?.label || aggregate.label,
@@ -255,6 +257,7 @@ export function discoverThemeQueue(
         promotedThemeId: existing?.promotedThemeId || null,
         rejectedReason: existing?.rejectedReason || null,
       } satisfies ThemeDiscoveryQueueItem;
+      return [item];
     })
     .filter((item) => item.sampleCount >= minSamples && item.sourceCount >= minSources && item.signalScore >= 48)
     .sort((a, b) => b.signalScore - a.signalScore || b.sampleCount - a.sampleCount || a.label.localeCompare(b.label))

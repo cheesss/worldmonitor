@@ -135,6 +135,8 @@ This system is not an auto-trader. Use it as a structured decision-support termi
 - Approved expansions only become live on the next refresh, so they should be treated as queued universe changes.
 - Auto-approved candidates now run through a probation window and can be auto-demoted if they repeatedly fail to produce useful mappings.
 - Source acceptance is now mostly automated under guarded policy, but it uses composite source scoring plus category/domain caps rather than raw confidence alone.
+- Weak theme motifs and low-signal autonomous keywords are now auto-retired or auto-rejected by the unattended loop.
+- Weak idea cards are now auto-suppressed before the operator view, so the dashboard no longer depends on manual cleanup of every low-quality card.
 
 ## Unattended automation loop
 
@@ -160,6 +162,8 @@ The backtest stack can now run without daily operator clicks, but only if you wi
 8. Sweep discovered sources and API sources through source automation policy
 9. Ask Codex for candidate expansion on top coverage gaps
 10. Auto-accept only when universe thresholds pass, then replay again if the active universe changed
+11. Review keyword lifecycle and retire low-signal autonomous keywords
+12. Auto-clean weak theme queue items and suppress weak idea cards before the operator view
 
 ### What Codex does and does not do
 

@@ -21,6 +21,9 @@ owner: core
 - Added sector, asset-kind, category, domain, and base-url caps to avoid over-concentration
 - Added cooldown and region-balance controls for scheduler-driven candidate expansion
 - Added promotion-score and novelty-overlap gates for Codex-driven theme promotion
+- Added autonomous keyword lifecycle review so weak autonomous terms can retire without manual cleanup
+- Added automatic theme-queue hygiene for low-signal or stale motifs
+- Added automatic idea-card suppression for weak operator-facing ideas
 
 ## Why it matters
 
@@ -32,6 +35,7 @@ The biggest remaining manual steps were routine source acceptance and pressing `
 - `Investment Workflow` still shows the review queue, but the scheduler can now populate and auto-accept eligible candidates before you open the panel
 - `Replay` and `walk-forward` results can adapt faster because accepted universe changes now trigger a replay refresh
 - Auto-approvals should now be more balanced because the worker penalizes crowding and respects caps instead of relying on a single threshold
+- Operators should spend less time manually deleting weak keywords or ignoring low-quality idea cards because the unattended loop now cleans both paths
 
 ## Safety boundary
 

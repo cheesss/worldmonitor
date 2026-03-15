@@ -18,6 +18,7 @@ import {
   type CodexThemeProposal,
   type ThemeDiscoveryQueueItem,
 } from '../theme-discovery';
+import { isLowSignalKeywordTerm, reviewKeywordRegistryLifecycle } from '../keyword-registry';
 import { proposeCandidatesWithCodex } from './codex-candidate-proposer';
 import { proposeThemeWithCodex } from './codex-theme-proposer';
 import {
@@ -27,7 +28,7 @@ import {
 } from './source-automation';
 
 type HistoricalProvider = 'fred' | 'alfred' | 'gdelt-doc' | 'coingecko' | 'acled';
-type AutomationJobKind = 'fetch' | 'import' | 'replay' | 'walk-forward' | 'theme-discovery' | 'theme-proposer' | 'candidate-expansion' | 'source-automation' | 'retention';
+type AutomationJobKind = 'fetch' | 'import' | 'replay' | 'walk-forward' | 'theme-discovery' | 'theme-proposer' | 'candidate-expansion' | 'source-automation' | 'keyword-lifecycle' | 'retention';
 type ThemeAutomationMode = 'manual' | 'guarded-auto' | 'full-auto';
 type GapSeverity = 'watch' | 'elevated' | 'critical';
 
@@ -85,6 +86,7 @@ export interface IntelligenceAutomationRegistry {
     replayEveryMinutes: number;
     walkForwardLocalHour: number;
     themeDiscoveryEveryMinutes: number;
+    keywordLifecycleEveryMinutes: number;
     maxRetries: number;
     retentionDays: number;
     artifactRetentionCount: number;
@@ -132,6 +134,7 @@ export interface IntelligenceAutomationState {
   version: number;
   updatedAt: string;
   lastCandidateExpansionAt?: string | null;
+  lastKeywordLifecycleAt?: string | null;
   candidateThemeHistory?: Record<string, string>;
   datasets: Record<string, DatasetAutomationState>;
   runs: AutomationRunRecord[];
@@ -208,6 +211,7 @@ function createDefaultRegistry(): IntelligenceAutomationRegistry {
       replayEveryMinutes: 60,
       walkForwardLocalHour: 2,
       themeDiscoveryEveryMinutes: 180,
+      keywordLifecycleEveryMinutes: 360,
       maxRetries: 3,
       retentionDays: 30,
       artifactRetentionCount: 24,
@@ -243,6 +247,7 @@ function defaultState(): IntelligenceAutomationState {
     version: 1,
     updatedAt: nowIso(),
     lastCandidateExpansionAt: null,
+    lastKeywordLifecycleAt: null,
     candidateThemeHistory: {},
     datasets: {},
     runs: [],
@@ -261,6 +266,7 @@ function normalizeRegistry(raw?: Partial<IntelligenceAutomationRegistry> | null)
       horizonsHours: Array.isArray(raw?.defaults?.horizonsHours)
         ? raw!.defaults!.horizonsHours!.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0)
         : fallback.defaults.horizonsHours,
+      keywordLifecycleEveryMinutes: Math.max(30, Number(raw?.defaults?.keywordLifecycleEveryMinutes) || fallback.defaults.keywordLifecycleEveryMinutes),
     },
     themeAutomation: {
       ...fallback.themeAutomation,
@@ -306,6 +312,7 @@ function normalizeState(raw?: Partial<IntelligenceAutomationState> | null): Inte
     version: 1,
     updatedAt: String(raw?.updatedAt || fallback.updatedAt),
     lastCandidateExpansionAt: raw?.lastCandidateExpansionAt || null,
+    lastKeywordLifecycleAt: raw?.lastKeywordLifecycleAt || null,
     candidateThemeHistory: raw?.candidateThemeHistory && typeof raw.candidateThemeHistory === 'object'
       ? Object.fromEntries(Object.entries(raw.candidateThemeHistory).map(([key, value]) => [key, String(value || '')]))
       : {},
@@ -572,6 +579,40 @@ function mergeThemeQueue(state: IntelligenceAutomationState, queue: ThemeDiscove
     } : item);
   }
   state.themeQueue = Array.from(existing.values()).slice(-120);
+}
+
+function reviewThemeQueueState(state: IntelligenceAutomationState, registry: IntelligenceAutomationRegistry): void {
+  const reviewedAt = nowIso();
+  state.themeQueue = state.themeQueue.map((item) => {
+    if (item.status !== 'open') return item;
+    const ageHours = Math.max(0, (Date.now() - asTs(item.createdAt || item.updatedAt)) / 3_600_000);
+    const normalizedTopic = String(item.topicKey || item.label || '').replace(/-/g, ' ');
+    if (isLowSignalKeywordTerm(item.label) || isLowSignalKeywordTerm(normalizedTopic)) {
+      return {
+        ...item,
+        status: 'rejected',
+        rejectedReason: 'Auto-rejected as low-signal keyword motif.',
+        updatedAt: reviewedAt,
+      };
+    }
+    if (item.overlapWithKnownThemes > registry.themeAutomation.maxOverlapWithKnownThemes + 0.08) {
+      return {
+        ...item,
+        status: 'rejected',
+        rejectedReason: 'Auto-rejected because novelty overlap with existing themes is too high.',
+        updatedAt: reviewedAt,
+      };
+    }
+    if (ageHours >= 24 && item.signalScore < Math.max(42, registry.themeAutomation.minDiscoveryScore - 10)) {
+      return {
+        ...item,
+        status: 'rejected',
+        rejectedReason: 'Auto-rejected after aging below the discovery quality floor.',
+        updatedAt: reviewedAt,
+      };
+    }
+    return item;
+  });
 }
 
 function gapSeverityRank(value: GapSeverity): number {
@@ -876,6 +917,16 @@ export async function runIntelligenceAutomationCycle(args: {
   const sourceAutomation = await runWithRetry('global', 'source-automation', Math.max(1, registry.defaults.maxRetries - 1), async () => (
     runSourceAutomationSweep(registry.sourceAutomation)
   ), state);
+
+  if (shouldRunEvery(state.lastKeywordLifecycleAt, registry.defaults.keywordLifecycleEveryMinutes, nowMs)) {
+    await runWithRetry('global', 'keyword-lifecycle', Math.max(1, registry.defaults.maxRetries - 1), async () => {
+      await reviewKeywordRegistryLifecycle();
+      state.lastKeywordLifecycleAt = nowIso();
+      return true;
+    }, state);
+  }
+
+  reviewThemeQueueState(state, registry);
 
   const knownThemes = [...listBaseInvestmentThemes(), ...state.promotedThemes.map((entry) => entry.theme)];
   let promotionsToday = state.promotedThemes.filter((entry) => sameLocalDay(entry.promotedAt, nowIso())).length;

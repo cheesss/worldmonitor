@@ -40,6 +40,8 @@ To turn narrative monitoring into testable, reviewable decision workflows.
 - source registry candidates that can now auto-approve and auto-activate under guarded score and diversity policy
 - coverage-gap candidate expansion that can now be requested by the scheduler instead of only by button clicks
 - candidate auto-approval that now uses composite scoring plus sector and asset-kind caps
+- weak theme motifs and low-signal autonomous keywords that can now be auto-retired or auto-rejected
+- weak idea cards that can now be auto-suppressed before the operator view
 
 ## Key UI surfaces
 
@@ -66,6 +68,8 @@ To turn narrative monitoring into testable, reviewable decision workflows.
 - Codex theme proposer automation with guarded auto-promotion, novelty overlap limits, and promotion scores
 - source automation sweep for discovered feed and API registry acceptance using score, health, and diversity caps
 - scheduler-driven candidate expansion and replay refresh after accepted universe changes, with cooldown and per-region balancing
+- autonomous keyword lifecycle review and theme-queue hygiene
+- pre-render idea-card triage and suppression
 
 ## Limits
 
