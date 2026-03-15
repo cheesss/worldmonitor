@@ -1159,10 +1159,7 @@ async function seedSatelliteTLEs() {
               resp.resume();
               return reject(new Error(`CelesTrak ${group}: HTTP ${resp.statusCode}`));
             }
-            _collectDecompressed(resp).then((data) => {
-              if (data.length > 2 * 1024 * 1024) { return reject(new Error(`CelesTrak ${group}: payload > 2MB`)); }
-              resolve(data);
-            }).catch((err) => reject(err));
+            _collectDecompressed(resp, 2 * 1024 * 1024).then(resolve).catch(reject);
           });
           req.on('error', reject);
           req.on('timeout', () => { req.destroy(); reject(new Error(`CelesTrak ${group}: timeout`)); });
@@ -5589,7 +5586,7 @@ async function _fetchOpenSkyToken(clientId, clientSecret) {
 }
 
 // Promisified upstream OpenSky fetch (single request)
-function _collectDecompressed(response) {
+function _collectDecompressed(response, maxBytes) {
   return new Promise((resolve, reject) => {
     const enc = (response.headers['content-encoding'] || '').trim().toLowerCase();
     let stream = response;
@@ -5597,7 +5594,16 @@ function _collectDecompressed(response) {
     else if (enc === 'deflate') stream = response.pipe(zlib.createInflate());
     else if (enc === 'br') stream = response.pipe(zlib.createBrotliDecompress());
     const chunks = [];
-    stream.on('data', chunk => chunks.push(chunk));
+    let totalSize = 0;
+    stream.on('data', chunk => {
+      totalSize += chunk.length;
+      if (maxBytes && totalSize > maxBytes) {
+        stream.destroy();
+        response.destroy();
+        return reject(new Error(`payload exceeds ${maxBytes} byte limit (${totalSize} bytes decompressed)`));
+      }
+      chunks.push(chunk);
+    });
     stream.on('end', () => resolve(Buffer.concat(chunks).toString()));
     stream.on('error', (err) => reject(new Error(`decompression failed (${enc}): ${err.message}`)));
   });
