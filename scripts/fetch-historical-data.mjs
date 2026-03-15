@@ -198,6 +198,35 @@ async function fetchAcled(args) {
   };
 }
 
+export async function fetchHistoricalEnvelope(provider, args = {}) {
+  const normalizedProvider = String(provider || args.provider || args._?.[0] || '').trim().toLowerCase();
+  switch (normalizedProvider) {
+    case 'fred':
+      return fetchFred(args);
+    case 'alfred':
+      return fetchAlfred(args);
+    case 'gdelt-doc':
+      return fetchGdeltDoc(args);
+    case 'coingecko':
+      return fetchCoingecko(args);
+    case 'acled':
+      return fetchAcled(args);
+    default:
+      throw new Error(`Unsupported provider: ${normalizedProvider || '(empty)'}`);
+  }
+}
+
+export async function writeHistoricalEnvelope(outputPath, provider, envelope) {
+  const resolved = path.resolve(String(outputPath || ''));
+  await mkdir(path.dirname(resolved), { recursive: true });
+  await writeFile(resolved, JSON.stringify({
+    fetchedAt: new Date().toISOString(),
+    provider: String(provider || '').trim().toLowerCase(),
+    envelope,
+  }, null, 2), 'utf8');
+  return resolved;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const provider = String(args.provider || args._[0] || '').trim().toLowerCase();
@@ -219,35 +248,13 @@ async function main() {
     process.exit(provider ? 0 : 1);
   }
 
-  let envelope;
-  switch (provider) {
-    case 'fred':
-      envelope = await fetchFred(args);
-      break;
-    case 'alfred':
-      envelope = await fetchAlfred(args);
-      break;
-    case 'gdelt-doc':
-      envelope = await fetchGdeltDoc(args);
-      break;
-    case 'coingecko':
-      envelope = await fetchCoingecko(args);
-      break;
-    case 'acled':
-      envelope = await fetchAcled(args);
-      break;
-    default:
-      throw new Error(`Unsupported provider: ${provider}`);
-  }
-
+  const envelope = await fetchHistoricalEnvelope(provider, args);
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const outputPath = path.resolve(String(args.out || `data/historical/${provider}/${timestamp}.json`));
-  await mkdir(path.dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, JSON.stringify({
-    fetchedAt: new Date().toISOString(),
+  const outputPath = await writeHistoricalEnvelope(
+    String(args.out || `data/historical/${provider}/${timestamp}.json`),
     provider,
     envelope,
-  }, null, 2), 'utf8');
+  );
 
   console.log(JSON.stringify({
     ok: true,
@@ -256,10 +263,12 @@ async function main() {
   }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({
-    ok: false,
-    error: error instanceof Error ? error.message : String(error),
-  }, null, 2));
-  process.exit(1);
-});
+if (import.meta.url === new URL(process.argv[1], 'file:').href) {
+  main().catch((error) => {
+    console.error(JSON.stringify({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    }, null, 2));
+    process.exit(1);
+  });
+}

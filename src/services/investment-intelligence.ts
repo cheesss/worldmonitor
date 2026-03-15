@@ -401,7 +401,7 @@ interface UniverseAssetDefinition extends ThemeAssetDefinition {
   regionBias?: string[];
 }
 
-interface ThemeRule {
+export interface InvestmentThemeDefinition {
   id: string;
   label: string;
   triggers: string[];
@@ -413,6 +413,8 @@ interface ThemeRule {
   baseSensitivity: number;
   assets: ThemeAssetDefinition[];
 }
+
+interface ThemeRule extends InvestmentThemeDefinition {}
 
 const SNAPSHOT_KEY = 'investment-intelligence:v1';
 const HISTORY_KEY = 'investment-intelligence-history:v1';
@@ -647,6 +649,7 @@ let marketHistoryKeys = new Set<string>();
 let mappingStats = new Map<string, MappingPerformanceStats>();
 let banditStates = new Map<string, BanditArmState>();
 let candidateReviews = new Map<string, CandidateExpansionReview>();
+let automatedThemes = new Map<string, InvestmentThemeDefinition>();
 let universeExpansionPolicy: UniverseExpansionPolicy = { ...DEFAULT_UNIVERSE_EXPANSION_POLICY };
 
 function clamp(value: number, min: number, max: number): number {
@@ -659,6 +662,73 @@ function normalize(value: string): string {
     .replace(/[^\p{L}\p{N}\s\-/.]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeThemeDefinition(theme: InvestmentThemeDefinition): InvestmentThemeDefinition {
+  return {
+    id: String(theme.id || '').trim().toLowerCase(),
+    label: String(theme.label || '').trim() || 'Untitled Theme',
+    triggers: Array.isArray(theme.triggers) ? theme.triggers.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean).slice(0, 20) : [],
+    sectors: Array.isArray(theme.sectors) ? theme.sectors.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean).slice(0, 10) : [],
+    commodities: Array.isArray(theme.commodities) ? theme.commodities.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean).slice(0, 10) : [],
+    timeframe: String(theme.timeframe || '1d-7d').trim() || '1d-7d',
+    thesis: String(theme.thesis || 'Automated theme proposal.').trim() || 'Automated theme proposal.',
+    invalidation: Array.isArray(theme.invalidation) ? theme.invalidation.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 6) : [],
+    baseSensitivity: clamp(Number(theme.baseSensitivity) || 60, 25, 95),
+    assets: dedupeThemeAssets(
+      Array.isArray(theme.assets)
+        ? theme.assets
+          .map((asset) => ({
+            symbol: String(asset.symbol || '').trim().toUpperCase(),
+            name: String(asset.name || asset.symbol || '').trim() || String(asset.symbol || '').trim().toUpperCase(),
+            assetKind: asset.assetKind,
+            sector: String(asset.sector || 'cross-asset').trim().toLowerCase() || 'cross-asset',
+            commodity: asset.commodity ? String(asset.commodity).trim().toLowerCase() : undefined,
+            direction: asset.direction,
+            role: asset.role,
+          }))
+          .filter((asset) => asset.symbol && asset.assetKind && asset.direction && asset.role)
+        : [],
+    ),
+  };
+}
+
+function listEffectiveThemeCatalog(): ThemeRule[] {
+  return [
+    ...THEME_RULES,
+    ...Array.from(automatedThemes.values()).map((theme) => normalizeThemeDefinition(theme)),
+  ];
+}
+
+export function listBaseInvestmentThemes(): InvestmentThemeDefinition[] {
+  return THEME_RULES.map((theme) => ({
+    ...theme,
+    triggers: theme.triggers.slice(),
+    sectors: theme.sectors.slice(),
+    commodities: theme.commodities.slice(),
+    invalidation: theme.invalidation.slice(),
+    assets: theme.assets.map((asset) => ({ ...asset })),
+  }));
+}
+
+export function listAutomatedInvestmentThemes(): InvestmentThemeDefinition[] {
+  return Array.from(automatedThemes.values()).map((theme) => ({
+    ...theme,
+    triggers: theme.triggers.slice(),
+    sectors: theme.sectors.slice(),
+    commodities: theme.commodities.slice(),
+    invalidation: theme.invalidation.slice(),
+    assets: theme.assets.map((asset) => ({ ...asset })),
+  }));
+}
+
+export function setAutomatedThemeCatalog(themes: InvestmentThemeDefinition[]): void {
+  automatedThemes = new Map(
+    (themes || [])
+      .map((theme) => normalizeThemeDefinition(theme))
+      .filter((theme) => theme.id && theme.triggers.length > 0)
+      .map((theme) => [theme.id, theme] as const),
+  );
 }
 
 function average(values: number[]): number {
@@ -1099,10 +1169,11 @@ function buildEventCandidates(args: {
 }
 
 function findMatchingThemes(candidate: EventCandidate): ThemeRule[] {
-  const matches = THEME_RULES.filter((rule) => rule.triggers.some((trigger) => candidate.text.includes(trigger)));
+  const themeCatalog = listEffectiveThemeCatalog();
+  const matches = themeCatalog.filter((rule) => rule.triggers.some((trigger) => candidate.text.includes(trigger)));
   if (matches.length > 0) return matches;
   if (candidate.matchedSymbols.length > 0 && candidate.marketStress >= 0.55) {
-    return THEME_RULES.filter((rule) => candidate.matchedSymbols.some((symbol) => themeHasAssetSymbol(rule, symbol)));
+    return themeCatalog.filter((rule) => candidate.matchedSymbols.some((symbol) => themeHasAssetSymbol(rule, symbol)));
   }
   return [];
 }
@@ -1209,7 +1280,7 @@ function getBanditState(themeId: string, symbol: string, direction: InvestmentDi
 }
 
 function getThemeRule(themeId: string): ThemeRule | null {
-  return THEME_RULES.find((theme) => theme.id === themeId) || null;
+  return listEffectiveThemeCatalog().find((theme) => theme.id === themeId) || null;
 }
 
 function getEffectiveThemeAssets(theme: ThemeRule): ThemeAssetDefinition[] {
@@ -2184,7 +2255,7 @@ function buildIdeaCards(mappings: DirectAssetMapping[], analogs: HistoricalAnalo
     const edgeAdj = clamp(0.75 + Math.max(0, avgPosterior - 50) / 80 + Math.max(0, avgReturn) / 14, 0.55, 1.35);
     const sizePct = clamp(rule.maxPositionPct * (conviction / 100) * (1 - falsePositiveRisk / 125) * edgeAdj, 0.15, rule.maxPositionPct);
     const lead = bucket[0]!;
-    const theme = THEME_RULES.find((item) => item.id === lead.themeId);
+    const theme = getThemeRule(lead.themeId);
     const relatedAnalogs = analogs
       .filter((analog) => analog.themes.some((item) => item === lead.themeId || item === normalize(lead.themeLabel)))
       .slice(0, 3)

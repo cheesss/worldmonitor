@@ -15,6 +15,7 @@ type LocaleLabels = {
   featuresOverview: string;
   liveIntelligence: string;
   investmentReplay: string;
+  automationOrchestration: string;
   interactiveDemo: string;
   legalOverview: string;
   licensing: string;
@@ -22,6 +23,7 @@ type LocaleLabels = {
   docs: string;
   footerMessage: string;
   docsLaunch: string;
+  automationUpdate: string;
 };
 
 function pathFor(locale: '' | 'ko' | 'ja', route: string): string {
@@ -54,7 +56,8 @@ function createSidebar(locale: '' | 'ko' | 'ja', labels: LocaleLabels) {
         items: [
           { text: labels.featuresOverview, link: pathFor(locale, '/features/') },
           { text: labels.liveIntelligence, link: pathFor(locale, '/features/live-intelligence') },
-          { text: labels.investmentReplay, link: pathFor(locale, '/features/investment-replay') }
+          { text: labels.investmentReplay, link: pathFor(locale, '/features/investment-replay') },
+          { text: labels.automationOrchestration, link: pathFor(locale, '/features/automation-orchestration') }
         ]
       }
     ],
@@ -79,6 +82,7 @@ function createSidebar(locale: '' | 'ko' | 'ja', labels: LocaleLabels) {
         text: labels.updates,
         items: [
           { text: labels.updatesOverview, link: pathFor(locale, '/updates/') },
+          { text: labels.automationUpdate, link: pathFor(locale, '/updates/2026-03-automation-theme-discovery') },
           { text: labels.docsLaunch, link: pathFor(locale, '/updates/2026-03-docs-launch') }
         ]
       }
@@ -153,13 +157,15 @@ const en: LocaleLabels = {
   featuresOverview: 'Overview',
   liveIntelligence: 'Live Intelligence',
   investmentReplay: 'Investment & Replay',
+  automationOrchestration: 'Automation & Theme Discovery',
   interactiveDemo: 'Interactive Demo',
   legalOverview: 'Overview',
   licensing: 'Licensing & Content',
   updatesOverview: 'Overview',
   docs: 'Docs',
   footerMessage: 'Code licensed under AGPL-3.0-only. Public docs and media follow separate content policies.',
-  docsLaunch: '2026-03 Docs Launch'
+  docsLaunch: '2026-03 Docs Launch',
+  automationUpdate: '2026-03 Automation'
 };
 
 const ko: LocaleLabels = {
@@ -177,13 +183,15 @@ const ko: LocaleLabels = {
   featuresOverview: '개요',
   liveIntelligence: '실시간 인텔리전스',
   investmentReplay: '투자 · 리플레이',
+  automationOrchestration: '자동화 · 테마 발견',
   interactiveDemo: '인터랙티브 데모',
   legalOverview: '개요',
   licensing: '라이선스 · 콘텐츠',
   updatesOverview: '개요',
   docs: '문서',
   footerMessage: '코드는 AGPL-3.0-only로 제공되며, 공개 문서와 미디어는 별도 콘텐츠 정책을 따릅니다.',
-  docsLaunch: '2026-03 문서 사이트 공개'
+  docsLaunch: '2026-03 문서 사이트 공개',
+  automationUpdate: '2026-03 자동화'
 };
 
 const ja: LocaleLabels = {
@@ -201,13 +209,15 @@ const ja: LocaleLabels = {
   featuresOverview: '概要',
   liveIntelligence: 'ライブインテリジェンス',
   investmentReplay: '投資・リプレイ',
+  automationOrchestration: '自動化・テーマ発見',
   interactiveDemo: 'Interactive Demo',
   legalOverview: '概要',
   licensing: 'ライセンス・コンテンツ',
   updatesOverview: '概要',
   docs: 'ドキュメント',
   footerMessage: 'コードは AGPL-3.0-only で提供され、公開ドキュメントとメディアには別のコンテンツ方針が適用されます。',
-  docsLaunch: '2026-03 ドキュメント公開'
+  docsLaunch: '2026-03 ドキュメント公開',
+  automationUpdate: '2026-03 自動化'
 };
 
 export default defineConfig({

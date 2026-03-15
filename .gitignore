@@ -56,6 +56,7 @@ skills-lock.json
 tmp/
 tmp_*/
 certs/
+data/automation/
 data/historical/
 *.docx
 upath-*.tgz

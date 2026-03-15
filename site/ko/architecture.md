@@ -26,6 +26,8 @@ owner: core
 - 도메인 서비스와 분석 모듈
 - 데스크톱 sidecar와 로컬 API
 - 히스토리컬 리플레이와 아카이브 서비스
+- unattended dataset registry와 scheduler worker
+- theme discovery queue와 guarded Codex proposer
 - 생성된 서비스 계약과 OpenAPI 표면
 
 ## 참고 문서

@@ -135,6 +135,54 @@ This system is not an auto-trader. Use it as a structured decision-support termi
 - Approved expansions only become live on the next refresh, so they should be treated as queued universe changes.
 - Auto-approved candidates now run through a probation window and can be auto-demoted if they repeatedly fail to produce useful mappings.
 
+## Unattended automation loop
+
+The backtest stack can now run without daily operator clicks, but only if you wire the scheduler correctly.
+
+### What controls it
+
+- dataset registry: `config/intelligence-datasets.json`
+- scheduler script: `scripts/intelligence-scheduler.mjs`
+- automation service: `src/services/server/intelligence-automation.ts`
+- theme discovery: `src/services/theme-discovery.ts`
+- Codex theme proposer: `src/services/server/codex-theme-proposer.ts`
+
+### What the scheduler does
+
+1. Fetch enabled historical datasets
+2. Import them into the bitemporal DuckDB archive
+3. Run replay on cadence
+4. Run nightly walk-forward
+5. Refresh the theme discovery queue from replay frames
+6. Ask Codex for new theme proposals only on high-signal queue items
+7. Auto-promote only when guarded thresholds pass
+
+### What Codex does and does not do
+
+- Codex can now propose new backtest themes from repeated unmapped motifs.
+- Codex does not blindly decide trades or override the scheduler policy.
+- In `guarded-auto`, deterministic thresholds still gate promotion:
+  - discovery score
+  - sample count
+  - source diversity
+  - Codex confidence
+  - minimum liquid candidate assets
+- Promoted themes are injected into the next replay cycle. They are not hot-patched into the currently running one.
+
+### Recommended operating mode
+
+- `manual`: research only
+- `guarded-auto`: default
+- `full-auto`: only for aggressive experimentation
+
+### Commands
+
+```bash
+npm run intelligence:scheduler:once
+npm run intelligence:scheduler
+node --import tsx scripts/intelligence-scheduler.mjs status
+```
+
 ## Recommended next operating step
 
 Stand up a server-side pipeline that stores:

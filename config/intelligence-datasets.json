@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "defaults": {
+    "dbPath": "data/historical/intelligence-history.duckdb",
+    "artifactDir": "data/historical/automation",
+    "bucketHours": 6,
+    "warmupFrameCount": 60,
+    "replayWindowDays": 60,
+    "walkForwardWindowDays": 180,
+    "horizonsHours": [1, 4, 24, 72, 168],
+    "fetchEveryMinutes": 60,
+    "replayEveryMinutes": 60,
+    "walkForwardLocalHour": 2,
+    "themeDiscoveryEveryMinutes": 180,
+    "maxRetries": 3,
+    "retentionDays": 30,
+    "artifactRetentionCount": 24,
+    "lockTtlMinutes": 180
+  },
+  "themeAutomation": {
+    "mode": "guarded-auto",
+    "minDiscoveryScore": 58,
+    "minSampleCount": 4,
+    "minSourceCount": 2,
+    "minCodexConfidence": 78,
+    "minAssetCount": 2,
+    "maxPromotionsPerDay": 1
+  },
+  "datasets": [
+    {
+      "id": "coingecko-btc-core",
+      "label": "CoinGecko BTC Core",
+      "enabled": false,
+      "provider": "coingecko",
+      "fetchArgs": {
+        "id": "bitcoin",
+        "vs": "usd",
+        "days": 365
+      },
+      "importOptions": {
+        "bucketHours": 6,
+        "warmupFrameCount": 60
+      }
+    },
+    {
+      "id": "fred-core-cpi",
+      "label": "FRED CPI Core",
+      "enabled": false,
+      "provider": "fred",
+      "fetchArgs": {
+        "series": "CPIAUCSL",
+        "observation_start": "2018-01-01",
+        "limit": 5000
+      }
+    },
+    {
+      "id": "gdelt-middle-east",
+      "label": "GDELT Middle East Chokepoints",
+      "enabled": false,
+      "provider": "gdelt-doc",
+      "fetchArgs": {
+        "query": "Hormuz OR tanker OR Red Sea OR missile OR drone OR oil",
+        "mode": "ArtList",
+        "max": 250
+      },
+      "schedule": {
+        "themeDiscoveryEveryMinutes": 120
+      }
+    },
+    {
+      "id": "acled-middle-east",
+      "label": "ACLED Middle East",
+      "enabled": false,
+      "provider": "acled",
+      "fetchArgs": {
+        "country": "Iran",
+        "event_types": "Battles|Explosions/Remote violence|Violence against civilians",
+        "limit": 500
+      }
+    }
+  ]
+}

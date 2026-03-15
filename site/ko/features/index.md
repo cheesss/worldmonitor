@@ -33,6 +33,7 @@ owner: core
 
 - [실시간 인텔리전스](/ko/features/live-intelligence)
 - [투자 · 리플레이](/ko/features/investment-replay)
+- [자동화 · 테마 발견](/ko/features/automation-orchestration)
 - [플레이그라운드](../playground)
 
 ## 추가 레퍼런스

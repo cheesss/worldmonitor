@@ -35,6 +35,8 @@ To turn narrative monitoring into testable, reviewable decision workflows.
 - coverage-aware universe summary, review queue, and gap tracking
 - approved dynamic candidates that join the next refresh and subsequent backtests
 - universe policy modes for manual, guarded auto-approval, and full auto-approval
+- scheduler-driven replay and nightly walk-forward when the automation worker is enabled
+- theme discovery queue items that can become reusable backtest themes after Codex proposal and guarded promotion
 
 ## Key UI surfaces
 
@@ -55,6 +57,9 @@ To turn narrative monitoring into testable, reviewable decision workflows.
 - deterministic ranking over core plus approved expansion assets
 - Codex-assisted candidate expansion as a reviewed queue, not an execution path
 - guarded auto-approval with probation and auto-demotion
+- dataset registry plus scheduler worker for unattended replay cadence
+- theme discovery queue built from repeated unmapped motifs in replay frames
+- Codex theme proposer automation with guarded auto-promotion rather than blind hot-path control
 
 ## Limits
 

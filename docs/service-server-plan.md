@@ -17,12 +17,15 @@ Open World Monitor as a service without losing point-in-time integrity, operatio
 - Postgres / Timescale becomes canonical shared persistence
 - object storage added for raw HTML, JSON, STIX bundles, and report snapshots
 - job queue introduced for importer, replay, and walk-forward runs
+- dataset registry and unattended scheduler worker introduced for fetch/import/replay cadence
+- theme discovery queue and guarded Codex theme proposer added behind worker policy
 
 ### Phase 3: production-grade multi-worker service
 - dedicated worker pools for ingest, normalization, analytics, and replay
 - bounded job concurrency and quotas
 - alerting, backups, and restore drills
 - operator RBAC and audit logging
+- theme proposal audit trail and promotion budget
 
 ## Storage plan
 
@@ -83,8 +86,8 @@ Use object storage for:
 - define retention for raw payloads, replay frames, and generated reports
 
 ## Operational readiness
-- metrics: queue depth, job duration, memory, CPU, DB size, source health, replay failure rate
-- alerts: importer stalls, replay failures, storage pressure, backup failures, source outage spikes
+- metrics: queue depth, job duration, memory, CPU, DB size, source health, replay failure rate, theme discovery queue depth
+- alerts: importer stalls, replay failures, storage pressure, backup failures, source outage spikes, Codex proposer failures
 - backups: daily Postgres backup, periodic DuckDB archive snapshot, object storage lifecycle policy
 - restore drills: test DB restore and replay rehydration before opening the service
 - migrations: use explicit schema migration steps before deploy

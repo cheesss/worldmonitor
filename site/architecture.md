@@ -26,6 +26,8 @@ The architecture stack below is interactive. Click a layer to inspect its runtim
 - domain services and analysis modules
 - desktop sidecar and local APIs
 - historical replay and archive services
+- unattended dataset registry and scheduler worker for fetch/import/replay cadence
+- theme discovery queue and guarded Codex theme proposer
 - generated service contracts and OpenAPI surfaces
 
 ## Reference docs

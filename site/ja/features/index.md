@@ -33,6 +33,7 @@ owner: core
 
 - [ライブインテリジェンス](/ja/features/live-intelligence)
 - [投資・リプレイ](/ja/features/investment-replay)
+- [自動化・テーマ発見](/ja/features/automation-orchestration)
 - [Playground](../playground)
 
 ## 追加リファレンス

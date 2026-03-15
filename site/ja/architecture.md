@@ -26,6 +26,8 @@ owner: core
 - ドメインサービスと分析モジュール
 - デスクトップ sidecar とローカル API
 - ヒストリカル・リプレイとアーカイブサービス
+- unattended dataset registry と scheduler worker
+- theme discovery queue と guarded Codex proposer
 - 生成されたサービス契約と OpenAPI surface
 
 ## 参照文書

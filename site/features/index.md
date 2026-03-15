@@ -24,6 +24,7 @@ Use this page after the playground. It maps capabilities to neighboring systems 
 
 - [Live Intelligence](/features/live-intelligence)
 - [Investment & Replay](/features/investment-replay)
+- [Automation & Theme Discovery](/features/automation-orchestration)
 - [Interactive Playground](../playground)
 
 ## Deep references

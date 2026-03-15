@@ -40,6 +40,8 @@
     "desktop:dev": "node scripts/desktop-dev.mjs",
     "historical:fetch": "node scripts/fetch-historical-data.mjs",
     "intelligence:job": "node --import tsx scripts/intelligence-job.mjs",
+    "intelligence:scheduler": "node --import tsx scripts/intelligence-scheduler.mjs",
+    "intelligence:scheduler:once": "node --import tsx scripts/intelligence-scheduler.mjs --once",
     "desktop:build:full": "npm run version:sync && VITE_VARIANT=full VITE_DESKTOP_RUNTIME=1 tauri build",
     "desktop:build:tech": "npm run version:sync && VITE_VARIANT=tech VITE_DESKTOP_RUNTIME=1 tauri build --config src-tauri/tauri.tech.conf.json",
     "desktop:build:finance": "npm run version:sync && VITE_VARIANT=finance VITE_DESKTOP_RUNTIME=1 tauri build --config src-tauri/tauri.finance.conf.json",

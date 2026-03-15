@@ -19,6 +19,7 @@ async function main() {
   const importer = await import('../src/services/importer/historical-stream-worker.ts');
   const replay = await import('../src/services/historical-intelligence.ts');
   const postgres = await import('../src/services/server/intelligence-postgres.ts');
+  const automation = await import('../src/services/server/intelligence-automation.ts');
 
   if (action === 'import-historical') {
     const result = await importer.processHistoricalDump(String(payload.filePath || ''), payload.options || {});
@@ -158,6 +159,24 @@ async function main() {
     if (!config) throw new Error('postgres config required');
     const run = await postgres.getHistoricalReplayRunFromPostgres(config, String(payload.runId || ''));
     process.stdout.write(JSON.stringify({ ok: true, run, found: Boolean(run) }));
+    return;
+  }
+
+  if (action === 'automation-status') {
+    const result = await automation.getIntelligenceAutomationStatus({
+      registryPath: payload.registryPath,
+      statePath: payload.statePath,
+    });
+    process.stdout.write(JSON.stringify({ ok: true, result }));
+    return;
+  }
+
+  if (action === 'automation-run-cycle') {
+    const result = await automation.runIntelligenceAutomationCycle({
+      registryPath: payload.registryPath,
+      statePath: payload.statePath,
+    });
+    process.stdout.write(JSON.stringify({ ok: true, result }));
     return;
   }
 
