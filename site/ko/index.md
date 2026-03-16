@@ -7,7 +7,7 @@ variants:
   - full
   - tech
   - finance
-updated: 2026-03-15
+updated: 2026-03-16
 owner: core
 hero:
   name: Lattice Current
@@ -40,7 +40,7 @@ features:
 
 ## 가장 빠른 시작 경로
 
-설명을 길게 읽기보다 아래 오퍼레이션 콘솔을 먼저 눌러보는 것이 가장 빠릅니다.
+이제 메인 페이지에서 실제 앱에 가장 가까운 두 표면을 바로 볼 수 있습니다. 아래 3D 지구본과 2D 운영 지도는 mock 데이터를 쓰지만 제품과 같은 시각 언어로 동작합니다.
 
 <div class="lc-home-signalbar">
   <div class="lc-home-signalbar-item">
@@ -57,9 +57,13 @@ features:
   </div>
 </div>
 
-<InteractiveGlobeHero locale="ko" />
+<ClientOnly>
+  <AppGradeGlobeShowcase locale="ko" />
+</ClientOnly>
 
-<OperationsConsoleDemo locale="ko" />
+<ClientOnly>
+  <AppGradeFlatMapShowcase locale="ko" />
+</ClientOnly>
 
 ## 포크 위치
 
@@ -76,8 +80,8 @@ features:
 <div class="lc-home-route-grid">
   <div class="lc-home-route-card">
     <span class="lc-route-kicker">체험 경로</span>
-    <h3>오퍼레이션 콘솔 -> 기능</h3>
-    <p>클릭형 지도와 허브를 먼저 체험한 뒤, 필요한 capability 문서만 들어가면 됩니다.</p>
+    <h3>메인 지도 표면 -> 기능</h3>
+    <p>위의 3D 지구본과 2D 운영 지도를 먼저 체험한 뒤, 필요한 capability 문서만 들어가면 됩니다.</p>
     <a href="/ko/playground">플레이그라운드 열기</a>
   </div>
   <div class="lc-home-route-card">
@@ -94,8 +98,8 @@ features:
   </div>
   <div class="lc-home-route-card">
     <span class="lc-route-kicker">시각 경로</span>
-    <h3>글로브 쇼케이스</h3>
-    <p>텍스처 지구, 아크, 경로, 더 풍부한 패널까지 포함한 제품형 3D 지구본은 별도 showcase 페이지에서 읽기 전용으로 확인할 수 있습니다.</p>
+    <h3>전용 글로브 경로</h3>
+    <p>메인 페이지와 같은 3D 지구본을 다른 요소 없이 단독으로 보고 싶다면 별도 showcase 경로를 열면 됩니다.</p>
     <a href="/ko/showcase/globe">글로브 쇼케이스 열기</a>
   </div>
 </div>
@@ -116,5 +120,6 @@ features:
 
 ## 최신 업데이트
 
+- [2026-03: 앱 수준 지구본과 2D 지도를 메인 페이지로 이동](/ko/updates/2026-03-home-map-surfaces)
 - [2026-03: 문서 홈에 인터랙티브 지구본 추가](/ko/updates/2026-03-interactive-globe-home)
 - [2026-03: 문서 사이트 공개와 공개 정책 정리](/ko/updates/2026-03-docs-launch)

@@ -11,6 +11,7 @@ import InteractivePlayground from './components/InteractivePlayground.vue';
 import OperationsConsoleDemo from './components/OperationsConsoleDemo.vue';
 import InteractiveGlobeHero from './components/InteractiveGlobeHero.vue';
 import AppGradeGlobeShowcase from './components/AppGradeGlobeShowcase.vue';
+import AppGradeFlatMapShowcase from './components/AppGradeFlatMapShowcase.vue';
 
 const theme: Theme = {
   ...DefaultTheme,
@@ -26,6 +27,7 @@ const theme: Theme = {
     app.component('OperationsConsoleDemo', OperationsConsoleDemo);
     app.component('InteractiveGlobeHero', InteractiveGlobeHero);
     app.component('AppGradeGlobeShowcase', AppGradeGlobeShowcase);
+    app.component('AppGradeFlatMapShowcase', AppGradeFlatMapShowcase);
   }
 };
 

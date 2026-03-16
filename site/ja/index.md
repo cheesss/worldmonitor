@@ -7,7 +7,7 @@ variants:
   - full
   - tech
   - finance
-updated: 2026-03-15
+updated: 2026-03-16
 owner: core
 hero:
   name: Lattice Current
@@ -40,7 +40,7 @@ features:
 
 ## 最短の入り方
 
-長い説明を読むより、下の operations console をまず触るのが最短です。
+メインページに実アプリに最も近い 2 つの表面を直接置きました。下の 3D グローブと 2D オペレーションマップは mock データですが、製品と同じ視覚言語で動きます。
 
 <div class="lc-home-signalbar">
   <div class="lc-home-signalbar-item">
@@ -57,9 +57,13 @@ features:
   </div>
 </div>
 
-<InteractiveGlobeHero locale="ja" />
+<ClientOnly>
+  <AppGradeGlobeShowcase locale="ja" />
+</ClientOnly>
 
-<OperationsConsoleDemo locale="ja" />
+<ClientOnly>
+  <AppGradeFlatMapShowcase locale="ja" />
+</ClientOnly>
 
 ## フォークとしての位置づけ
 
@@ -76,8 +80,8 @@ features:
 <div class="lc-home-route-grid">
   <div class="lc-home-route-card">
     <span class="lc-route-kicker">Hands-on path</span>
-    <h3>Operations console -> features</h3>
-    <p>まずクリックできる map と hub を触って、必要な capability 文書だけ後から開いてください。</p>
+    <h3>Home map surfaces -> features</h3>
+    <p>先に上の 3D グローブと 2D オペレーションマップを触り、必要な capability 文書だけ後から開いてください。</p>
     <a href="/ja/playground">Open playground</a>
   </div>
   <div class="lc-home-route-card">
@@ -94,8 +98,8 @@ features:
   </div>
   <div class="lc-home-route-card">
     <span class="lc-route-kicker">Visual path</span>
-    <h3>Globe showcase</h3>
-    <p>textured earth、arc、route、より密な side panel を含む product-like 3D globe は別の showcase page で read-only 体験できます。</p>
+    <h3>Dedicated globe route</h3>
+    <p>メインページと同じ 3D グローブを他の要素なしで見たい場合は、専用 showcase ルートを開いてください。</p>
     <a href="/ja/showcase/globe">Open globe showcase</a>
   </div>
 </div>
@@ -116,5 +120,6 @@ features:
 
 ## 最新更新
 
+- [2026-03: アプリ級グローブと 2D マップをホームに移設](/ja/updates/2026-03-home-map-surfaces)
 - [2026-03: ホームにインタラクティブグローブを追加](/ja/updates/2026-03-interactive-globe-home)
 - [2026-03: ドキュメントサイト公開と公開ポリシー整理](/ja/updates/2026-03-docs-launch)

@@ -6,14 +6,14 @@ variants:
   - full
   - tech
   - finance
-updated: 2026-03-15
+updated: 2026-03-16
 owner: core
 ---
 
 # Features
 
 <p class="lc-section-caption">
-Use this page after the playground. It maps capabilities to neighboring systems and deeper docs without repeating the full console demo.
+Use this page after the home map surfaces or playground. It maps capabilities to neighboring systems and deeper docs without repeating the full console demo.
 </p>
 
 <CapabilityConstellation locale="en" />
@@ -25,6 +25,7 @@ Use this page after the playground. It maps capabilities to neighboring systems 
 - [Live Intelligence](/features/live-intelligence)
 - [Investment & Replay](/features/investment-replay)
 - [Automation & Theme Discovery](/features/automation-orchestration)
+- [Home map surfaces](/)
 - [Globe Showcase](/showcase/globe)
 - [Interactive Playground](../playground)
 

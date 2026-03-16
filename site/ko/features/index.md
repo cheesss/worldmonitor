@@ -6,14 +6,14 @@ variants:
   - full
   - tech
   - finance
-updated: 2026-03-15
+updated: 2026-03-16
 owner: core
 ---
 
 # 기능
 
 <p class="lc-section-caption">
-이 페이지는 플레이그라운드 다음 단계입니다. 전체 콘솔 데모를 반복하지 않고 capability map과 연결 구조를 빠르게 파악하도록 구성했습니다.
+이 페이지는 메인 지도 표면이나 플레이그라운드를 본 다음 단계입니다. 전체 콘솔 데모를 반복하지 않고 capability map과 연결 구조를 빠르게 파악하도록 구성했습니다.
 </p>
 
 <CapabilityConstellation locale="ko" />
@@ -34,6 +34,7 @@ owner: core
 - [실시간 인텔리전스](/ko/features/live-intelligence)
 - [투자 · 리플레이](/ko/features/investment-replay)
 - [자동화 · 테마 발견](/ko/features/automation-orchestration)
+- [메인 지도 표면](/ko/)
 - [글로브 쇼케이스](/ko/showcase/globe)
 - [플레이그라운드](../playground)
 

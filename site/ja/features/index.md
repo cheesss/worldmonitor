@@ -6,14 +6,14 @@ variants:
   - full
   - tech
   - finance
-updated: 2026-03-15
+updated: 2026-03-16
 owner: core
 ---
 
 # 機能
 
 <p class="lc-section-caption">
-このページは Playground の次の段階です。console demo を繰り返さず、capability map と接続関係を短く追える構成にしています。
+このページはホームの地図サーフェスか Playground を見た後の段階です。console demo を繰り返さず、capability map と接続関係を短く追える構成にしています。
 </p>
 
 <CapabilityConstellation locale="ja" />
@@ -34,6 +34,7 @@ owner: core
 - [ライブインテリジェンス](/ja/features/live-intelligence)
 - [投資・リプレイ](/ja/features/investment-replay)
 - [自動化・テーマ発見](/ja/features/automation-orchestration)
+- [ホーム地図サーフェス](/ja/)
 - [Globe Showcase](/ja/showcase/globe)
 - [Playground](../playground)
 

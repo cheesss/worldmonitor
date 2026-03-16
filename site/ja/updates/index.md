@@ -6,12 +6,13 @@ variants:
   - full
   - tech
   - finance
-updated: 2026-03-15
+updated: 2026-03-16
 owner: core
 ---
 
 # 更新
 
+- [2026-03: アプリ級グローブと 2D マップをホームに移設](/ja/updates/2026-03-home-map-surfaces)
 - [2026-03: App-grade globe showcase を追加](/ja/updates/2026-03-app-grade-globe-showcase)
 - [2026-03: ホームにインタラクティブグローブを追加](/ja/updates/2026-03-interactive-globe-home)
 - [2026-03: 自動ソース承認と候補拡張](/ja/updates/2026-03-autonomous-ops-tightening)

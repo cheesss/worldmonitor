@@ -6,12 +6,13 @@ variants:
   - full
   - tech
   - finance
-updated: 2026-03-15
+updated: 2026-03-16
 owner: core
 ---
 
 # 업데이트
 
+- [2026-03: 앱 수준 지구본과 2D 지도를 메인 페이지로 이동](/ko/updates/2026-03-home-map-surfaces)
 - [2026-03: 앱 수준 글로브 쇼케이스 추가](/ko/updates/2026-03-app-grade-globe-showcase)
 - [2026-03: 문서 홈에 인터랙티브 지구본 추가](/ko/updates/2026-03-interactive-globe-home)
 - [2026-03: 자동 소스 승인과 후보 확장](/ko/updates/2026-03-autonomous-ops-tightening)
