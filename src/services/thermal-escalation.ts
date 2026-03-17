@@ -111,7 +111,7 @@ export async function fetchThermalEscalations(maxItems = 12): Promise<ThermalEsc
       fetchedAt: hydrated.fetchedAt ? new Date(hydrated.fetchedAt) : new Date(0),
       observationWindowHours: hydrated.observationWindowHours ?? 24,
       sourceVersion: hydrated.sourceVersion || 'thermal-escalation-v1',
-      clusters: (hydrated.clusters ?? []).map(toCluster),
+      clusters: (hydrated.clusters ?? []).slice(0, maxItems).map(toCluster),
       summary: {
         clusterCount: hydrated.summary?.clusterCount ?? 0,
         elevatedCount: hydrated.summary?.elevatedCount ?? 0,
