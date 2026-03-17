@@ -4,6 +4,26 @@
 
 Run historical fetch, import, replay, walk-forward, source acceptance, candidate expansion, theme discovery, guarded dataset registration, self-tuning, and top-down risk control without daily operator intervention.
 
+## Pilot default
+
+The repository is now pre-wired for a small unattended pilot.
+
+Default datasets are enabled:
+
+- `coingecko-btc-core`
+- `fred-core-cpi`
+- `gdelt-middle-east`
+- `acled-middle-east`
+
+This means the scheduler will try to fetch and replay them as soon as the required provider keys exist.
+
+Provider requirement summary:
+
+- `coingecko-btc-core`: no key required
+- `gdelt-middle-east`: no key required
+- `fred-core-cpi`: requires `FRED_API_KEY`
+- `acled-middle-east`: requires `ACLED_ACCESS_TOKEN`
+
 ## Files
 
 - registry: `config/intelligence-datasets.json`
@@ -62,6 +82,25 @@ Inspect registry and state:
 node --import tsx scripts/intelligence-scheduler.mjs status
 ```
 
+Run through the Windows wrapper that loads `.env.local` and writes logs:
+
+```bash
+npm run intelligence:scheduler:service:once
+npm run intelligence:scheduler:service:run
+```
+
+Install or remove the Windows scheduled task:
+
+```bash
+npm run intelligence:scheduler:service:install
+npm run intelligence:scheduler:service:remove
+```
+
+The task name is `WorldMonitor-Intelligence-Scheduler`.
+It tries to install as `SYSTEM` on startup first.
+If that fails, it falls back to a current-user logon task.
+If task registration is blocked by policy, it writes a Startup-folder fallback command file for the current user instead.
+
 ## Locking
 
 - lock scope is per dataset and per theme queue item
@@ -73,12 +112,14 @@ node --import tsx scripts/intelligence-scheduler.mjs status
 - failures are retried automatically
 - backoff grows exponentially from 5 minutes
 - the dataset state carries `nextEligibleAt` after repeated failure
+- the scheduled task itself is configured to restart repeatedly after failure
 
 ## Retention
 
 - scheduler run history is trimmed by age
 - old fetch artifacts are pruned per dataset
 - old non-open queue items are pruned by retention window
+- wrapper logs are written under `data/automation/logs`
 
 ## Theme discovery and Codex
 
@@ -128,6 +169,17 @@ A theme is auto-promoted only when:
 ## Important limitation
 
 Codex can propose backtest themes and candidate assets, but it is still not the final execution engine. The scheduler policy and universe policy remain the deterministic gates.
+
+## Windows unattended startup
+
+For the current Windows-first pilot setup, the unattended path is:
+
+1. Put provider keys into `.env.local`
+2. Run `npm run intelligence:scheduler:service:install`
+3. Confirm status with `npm run intelligence:scheduler:status`
+4. Inspect logs under `data/automation/logs`
+
+This is enough to keep the unattended research loop alive without manually reopening a console after each restart.
 
 ## Dataset discovery and guarded registration
 

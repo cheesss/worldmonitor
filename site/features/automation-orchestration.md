@@ -112,6 +112,27 @@ It does that by:
 
 This is still constrained autonomy. The system can widen its historical coverage, but it does not blindly register every interesting idea as a new dataset.
 
+## Pilot bootstrap
+
+The default registry is now pre-enabled for a small unattended pilot:
+
+- `coingecko-btc-core`
+- `fred-core-cpi`
+- `gdelt-middle-east`
+- `acled-middle-east`
+
+That means the worker will start trying to fetch and replay those inputs as soon as the provider keys exist.
+
+Windows helper scripts are also included now:
+
+- `scripts/run-intelligence-scheduler.ps1`
+- `scripts/install-intelligence-scheduler-task.ps1`
+- `scripts/remove-intelligence-scheduler-task.ps1`
+
+These wrappers load `.env.local`, write scheduler logs, and register a Windows scheduled task so the unattended loop can survive restarts without a manually opened terminal.
+
+If task registration is blocked by local policy, the installer falls back to a Startup-folder launcher for the current user.
+
 ## Self-tuning and experiment registry
 
 The automation loop now also keeps a small experiment registry.

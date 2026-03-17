@@ -233,6 +233,8 @@ The backtest stack can now run without daily operator clicks, but only if you wi
 
 - dataset registry: `config/intelligence-datasets.json`
 - scheduler script: `scripts/intelligence-scheduler.mjs`
+- Windows runner: `scripts/run-intelligence-scheduler.ps1`
+- Windows task installer: `scripts/install-intelligence-scheduler-task.ps1`
 - automation service: `src/services/server/intelligence-automation.ts`
 - theme discovery: `src/services/theme-discovery.ts`
 - Codex theme proposer: `src/services/server/codex-theme-proposer.ts`
@@ -290,7 +292,32 @@ The backtest stack can now run without daily operator clicks, but only if you wi
 npm run intelligence:scheduler:once
 npm run intelligence:scheduler
 node --import tsx scripts/intelligence-scheduler.mjs status
+npm run intelligence:scheduler:service:install
 ```
+
+### Pilot activation checklist
+
+For the current repository default, the unattended pilot is almost ready out of the box.
+
+What is already enabled:
+
+- `coingecko-btc-core`
+- `fred-core-cpi`
+- `gdelt-middle-east`
+- `acled-middle-east`
+
+What you still need to supply:
+
+- `FRED_API_KEY`
+- `ACLED_ACCESS_TOKEN`
+- optional LLM keys if you want remote summarization paths
+
+Once the keys exist, the fastest bootstrap path is:
+
+1. create `.env.local`
+2. run `npm run intelligence:scheduler:service:install`
+3. run `npm run intelligence:scheduler:status`
+4. inspect `data/automation/logs`
 
 ## Recommended next operating step
 

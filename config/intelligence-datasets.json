@@ -77,7 +77,7 @@
     {
       "id": "coingecko-btc-core",
       "label": "CoinGecko BTC Core",
-      "enabled": false,
+      "enabled": true,
       "provider": "coingecko",
       "fetchArgs": {
         "id": "bitcoin",
@@ -87,23 +87,31 @@
       "importOptions": {
         "bucketHours": 6,
         "warmupFrameCount": 60
+      },
+      "schedule": {
+        "fetchEveryMinutes": 60,
+        "replayEveryMinutes": 60
       }
     },
     {
       "id": "fred-core-cpi",
       "label": "FRED CPI Core",
-      "enabled": false,
+      "enabled": true,
       "provider": "fred",
       "fetchArgs": {
         "series": "CPIAUCSL",
         "observation_start": "2018-01-01",
         "limit": 5000
+      },
+      "schedule": {
+        "fetchEveryMinutes": 360,
+        "replayEveryMinutes": 360
       }
     },
     {
       "id": "gdelt-middle-east",
       "label": "GDELT Middle East Chokepoints",
-      "enabled": false,
+      "enabled": true,
       "provider": "gdelt-doc",
       "fetchArgs": {
         "query": "Hormuz OR tanker OR Red Sea OR missile OR drone OR oil",
@@ -111,18 +119,24 @@
         "max": 250
       },
       "schedule": {
+        "fetchEveryMinutes": 60,
+        "replayEveryMinutes": 60,
         "themeDiscoveryEveryMinutes": 120
       }
     },
     {
       "id": "acled-middle-east",
       "label": "ACLED Middle East",
-      "enabled": false,
+      "enabled": true,
       "provider": "acled",
       "fetchArgs": {
         "country": "Iran",
         "event_types": "Battles|Explosions/Remote violence|Violence against civilians",
         "limit": 500
+      },
+      "schedule": {
+        "fetchEveryMinutes": 180,
+        "replayEveryMinutes": 180
       }
     }
   ]

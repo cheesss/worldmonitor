@@ -116,6 +116,25 @@ It can now:
 
 This means the system is still constrained, but it is noticeably less dependent on manual queue curation than earlier versions.
 
+## What must exist before replay really starts
+
+The repository now ships with a pilot registry that is already enabled, but replay still depends on live provider access.
+
+Minimum unattended pilot inputs:
+
+- `coingecko-btc-core`
+- `fred-core-cpi`
+- `gdelt-middle-east`
+- `acled-middle-east`
+
+Key requirements:
+
+- `coingecko` and `gdelt-doc`: no key required
+- `fred`: `FRED_API_KEY`
+- `acled`: `ACLED_ACCESS_TOKEN`
+
+Once those keys exist and the scheduler task is installed, the replay stack can start operating without repeated manual console runs.
+
 ## Variant coverage
 
 Primary: `finance`. Extended and shared support also exists in `tech`.
