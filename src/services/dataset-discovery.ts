@@ -32,6 +32,7 @@ export interface DatasetProposal {
   id: string;
   label: string;
   provider: DatasetHistoricalProvider;
+  proposedBy: 'heuristic' | 'codex';
   confidence: number;
   proposalScore: number;
   rationale: string;
@@ -125,6 +126,7 @@ function buildGdeltProposal(theme: DatasetDiscoveryThemeInput, priority: number)
     id: `gdelt-${slugify(theme.label)}`,
     label: `${theme.label} / GDELT Event Feed`,
     provider: 'gdelt-doc',
+    proposedBy: 'heuristic',
     confidence,
     proposalScore: clamp(Math.round(confidence + Math.min(8, terms.length * 2)), 0, 100),
     rationale: `Repeated event motif ${theme.label} needs a broader historical news archive for replay and theme drift checks.`,
@@ -151,6 +153,7 @@ function buildAcledProposal(theme: DatasetDiscoveryThemeInput, priority: number)
     id: `acled-${slugify(country)}-${slugify(theme.label).slice(0, 36)}`,
     label: `${country} Conflict Events / ${theme.label}`,
     provider: 'acled',
+    proposedBy: 'heuristic',
     confidence,
     proposalScore: clamp(Math.round(confidence + 6), 0, 100),
     rationale: `Structured conflict events can validate whether ${theme.label} is supported by real-world incident frequency, not only headlines.`,
@@ -186,6 +189,7 @@ function buildMacroFredProposal(theme: DatasetDiscoveryThemeInput, priority: num
       id: `${candidate.id}-${slugify(theme.label).slice(0, 28)}`,
       label: `${candidate.label} / ${theme.label}`,
       provider,
+      proposedBy: 'heuristic',
       confidence,
       proposalScore: clamp(Math.round(confidence + (provider === 'alfred' ? 4 : 2)), 0, 100),
       rationale: candidate.reason,
@@ -217,6 +221,7 @@ function buildCryptoProposal(theme: DatasetDiscoveryThemeInput, priority: number
         id: `coingecko-${slugify(id)}-${slugify(theme.label).slice(0, 28)}`,
         label: `CoinGecko ${label} / ${theme.label}`,
         provider: 'coingecko' as const,
+        proposedBy: 'heuristic',
         confidence,
         proposalScore: clamp(Math.round(confidence + 3), 0, 100),
         rationale: `${label} pricing is needed to validate whether ${theme.label} has repeatable crypto-market transmission.`,

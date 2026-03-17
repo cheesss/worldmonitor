@@ -140,7 +140,21 @@ This system is not an auto-trader. Use it as a structured decision-support termi
 - After a new dataset registers:
   1. Wait for the scheduler to fetch and import it.
   2. Check whether replay and walk-forward actually improve.
-  3. If not, keep the proposal observed rather than trusting it as permanent coverage.
+3. If not, keep the proposal observed rather than trusting it as permanent coverage.
+
+### Codex Ops
+
+- Use this when you need to answer three questions quickly:
+  - Is Codex automation actually armed?
+  - Why is the theme or dataset queue still empty?
+  - Which sources, themes, and datasets came from Codex rather than fixed registries?
+- The panel is intentionally narrow. It shows only:
+  - Codex-discovered feed and API sources
+  - Codex-promoted themes
+  - Codex dataset proposals
+  - the live activation checklist
+  - queue diagnosis and blocked dataset reasons
+- Treat it as the control room for autonomous research state, not as a replacement for the full `Source Ops` panel.
 
 ### Hidden graph candidates
 

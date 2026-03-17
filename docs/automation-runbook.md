@@ -24,6 +24,16 @@ Provider requirement summary:
 - `fred-core-cpi`: requires `FRED_API_KEY`
 - `acled-middle-east`: requires `ACLED_ACCESS_TOKEN`
 
+## Codex activation checklist
+
+Codex-driven source, theme, and dataset automation only fires when all of the following are true:
+
+1. Codex CLI is available and logged in.
+2. At least one dataset is enabled in `config/intelligence-datasets.json`.
+3. At least one enabled dataset has already produced replay frames.
+4. Protected providers are not blocked by auth errors.
+5. Theme or dataset pressure is high enough to clear the guarded thresholds.
+
 ## Files
 
 - registry: `config/intelligence-datasets.json`
@@ -166,6 +176,18 @@ A theme is auto-promoted only when:
 - overlap with the existing theme catalog stays below the configured ceiling
 - promotion score clears the configured floor
 - daily promotion budget is not exhausted
+
+## Why the queue can stay empty
+
+An empty queue usually means one of these, not that the worker is broken:
+
+- too few enabled datasets are actually producing replay frames
+- protected datasets are blocked by missing provider keys
+- recent motifs do not clear guarded thresholds for score, samples, source diversity, and overlap
+- dataset discovery sees no repeated uncovered theme pressure worth registering
+- Codex-driven source discovery has not produced candidates strong enough to pass guarded auto-accept
+
+Use the in-app `Codex Ops` panel to inspect these conditions directly.
 
 ## Important limitation
 

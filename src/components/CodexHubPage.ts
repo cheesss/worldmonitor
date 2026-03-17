@@ -1,4 +1,5 @@
-import type { DataQAAnalyticsSnapshot, DataQAPanel } from './DataQAPanel';
+ï»¿import type { DataQAAnalyticsSnapshot, DataQAPanel } from './DataQAPanel';
+import type { CodexOpsPanel } from './CodexOpsPanel';
 import type { SourceOpsPanel } from './SourceOpsPanel';
 import type { ScheduledReport } from '@/services/scheduled-reports';
 import type { EventMarketTransmissionSnapshot } from '@/services/event-market-transmission';
@@ -7,6 +8,7 @@ import type { SourceCredibilityProfile } from '@/services/source-credibility';
 interface CodexHubOptions {
   getDataQAPanel: () => DataQAPanel | null | undefined;
   getSourceOpsPanel: () => SourceOpsPanel | null | undefined;
+  getCodexOpsPanel: () => CodexOpsPanel | null | undefined;
   getIntelligenceArtifacts?: () => {
     reports: ScheduledReport[];
     transmission: EventMarketTransmissionSnapshot | null;
@@ -17,11 +19,13 @@ interface CodexHubOptions {
 export class CodexHubPage {
   private readonly getDataQAPanel: CodexHubOptions['getDataQAPanel'];
   private readonly getSourceOpsPanel: CodexHubOptions['getSourceOpsPanel'];
+  private readonly getCodexOpsPanel: CodexHubOptions['getCodexOpsPanel'];
   private readonly getIntelligenceArtifacts?: CodexHubOptions['getIntelligenceArtifacts'];
   private readonly overlay: HTMLElement;
   private readonly visualsSlot: HTMLElement;
   private readonly dataSlot: HTMLElement;
   private readonly sourceSlot: HTMLElement;
+  private readonly codexOpsSlot: HTMLElement;
   private readonly closeBtn: HTMLButtonElement;
   private readonly refreshBtn: HTMLButtonElement;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -31,6 +35,7 @@ export class CodexHubPage {
   constructor(options: CodexHubOptions) {
     this.getDataQAPanel = options.getDataQAPanel;
     this.getSourceOpsPanel = options.getSourceOpsPanel;
+    this.getCodexOpsPanel = options.getCodexOpsPanel;
     this.getIntelligenceArtifacts = options.getIntelligenceArtifacts;
 
     this.overlay = document.createElement('div');
@@ -40,11 +45,11 @@ export class CodexHubPage {
         <header class="codex-hub-header">
           <div>
             <h2 class="codex-hub-title">Codex Hub</h2>
-            <p class="codex-hub-subtitle">Codex Q&A, consensus reporting, rebuttal, and source-discovery analysis</p>
+            <p class="codex-hub-subtitle">Codex Q&A, consensus reporting, rebuttal, source discovery, and automation diagnostics</p>
           </div>
           <div class="codex-hub-actions">
             <button type="button" class="codex-hub-action-btn" data-role="refresh">Refresh</button>
-            <button type="button" class="codex-hub-close" data-role="close" aria-label="Close">¡¿</button>
+            <button type="button" class="codex-hub-close" data-role="close" aria-label="Close">Ã—</button>
           </div>
         </header>
         <div class="codex-hub-content">
@@ -52,6 +57,7 @@ export class CodexHubPage {
           <div class="codex-hub-grid">
             <section class="codex-hub-slot" data-slot="qa"></section>
             <section class="codex-hub-slot" data-slot="ops"></section>
+            <section class="codex-hub-slot codex-hub-slot-wide" data-slot="codex-ops"></section>
           </div>
         </div>
       </section>
@@ -60,6 +66,7 @@ export class CodexHubPage {
     this.visualsSlot = this.overlay.querySelector('[data-slot="visuals"]') as HTMLElement;
     this.dataSlot = this.overlay.querySelector('[data-slot="qa"]') as HTMLElement;
     this.sourceSlot = this.overlay.querySelector('[data-slot="ops"]') as HTMLElement;
+    this.codexOpsSlot = this.overlay.querySelector('[data-slot="codex-ops"]') as HTMLElement;
     this.closeBtn = this.overlay.querySelector('[data-role="close"]') as HTMLButtonElement;
     this.refreshBtn = this.overlay.querySelector('[data-role="refresh"]') as HTMLButtonElement;
 
@@ -141,6 +148,18 @@ export class CodexHubPage {
       await sourceOpsPanel.refresh();
     } else {
       this.sourceSlot.innerHTML = '<div class="codex-hub-empty">Source Ops panel is unavailable.</div>';
+    }
+
+    const codexOpsPanel = this.getCodexOpsPanel();
+    if (codexOpsPanel) {
+      const panelEl = codexOpsPanel.getElement();
+      codexOpsPanel.show();
+      if (panelEl.parentElement !== this.codexOpsSlot) {
+        this.codexOpsSlot.replaceChildren(panelEl);
+      }
+      await codexOpsPanel.refresh();
+    } else {
+      this.codexOpsSlot.innerHTML = '<div class="codex-hub-empty">Codex Ops panel is unavailable.</div>';
     }
   }
 
@@ -277,7 +296,7 @@ export class CodexHubPage {
         </article>
 
         <article class="codex-chart-card">
-          <h4>Event ¡æ Market Transmission</h4>
+          <h4>Event â†’ Market Transmission</h4>
           ${transmissionEdges.length > 0 ? transmissionEdges.map((edge) => `
             <div class="codex-mini-block">
               <strong>${this.escapeHtml(edge.eventTitle)}</strong>

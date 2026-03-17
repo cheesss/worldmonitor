@@ -149,6 +149,7 @@ export async function proposeDatasetsWithCodex(theme: DatasetDiscoveryThemeInput
     id: String((row as Record<string, unknown>).id || '').trim(),
     label: String((row as Record<string, unknown>).label || '').trim(),
     provider: String((row as Record<string, unknown>).provider || '').trim() as DatasetProposal['provider'],
+    proposedBy: 'codex' as const,
     confidence: Math.max(25, Math.min(95, Math.round(Number((row as Record<string, unknown>).confidence) || 60))),
     proposalScore: Math.max(25, Math.min(99, Math.round(Number((row as Record<string, unknown>).confidence) || 60))),
     rationale: String((row as Record<string, unknown>).rationale || 'Codex dataset proposal').trim(),

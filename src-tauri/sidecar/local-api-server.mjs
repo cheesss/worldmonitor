@@ -3589,6 +3589,25 @@ async function dispatch(requestUrl, req, routes, context) {
     }
   }
 
+  if (requestUrl.pathname === '/api/local-intelligence-automation-status') {
+    if (req.method !== 'GET') {
+      return json({ error: 'GET required' }, 405);
+    }
+    try {
+      const registryPath = String(requestUrl.searchParams.get('registryPath') || '').trim() || undefined;
+      const statePath = String(requestUrl.searchParams.get('statePath') || '').trim() || undefined;
+      const result = await runIntelligenceJob(
+        'automation-status',
+        { registryPath, statePath },
+        context,
+        60_000,
+      );
+      return json(result, 200);
+    } catch (error) {
+      return json({ ok: false, error: String(error?.message || 'automation status failed') }, 502);
+    }
+  }
+
   if (requestUrl.pathname === '/api/local-intelligence-postgres') {
     if (req.method !== 'POST') {
       return json({ error: 'POST required' }, 405);
@@ -3777,6 +3796,7 @@ export async function createLocalApiServer(options = {}) {
       || requestUrl.pathname === '/api/local-intelligence-replay'
       || requestUrl.pathname === '/api/local-intelligence-walk-forward'
       || requestUrl.pathname === '/api/local-intelligence-backtest-runs'
+      || requestUrl.pathname === '/api/local-intelligence-automation-status'
       || requestUrl.pathname === '/api/local-intelligence-postgres';
 
     try {

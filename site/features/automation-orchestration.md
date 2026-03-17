@@ -35,6 +35,7 @@ Runs the historical intelligence loop without daily operator intervention:
 - constrained autonomy outputs: `deploy`, `shadow`, `watch`, `abstain`
 - shadow-book rollback that can force the engine back into shadow mode after weak recent samples
 - explainable attribution that shows what part of the score came from corroboration, graph propagation, beta, macro pressure, or reality penalties
+- Codex-only operations view for feeds, promoted themes, dataset proposals, queue diagnosis, and activation checks
 
 ## Why it exists
 
@@ -133,6 +134,26 @@ These wrappers load `.env.local`, write scheduler logs, and register a Windows s
 
 If task registration is blocked by local policy, the installer falls back to a Startup-folder launcher for the current user.
 The wrapper reloads `.env.local` every cycle, so new provider keys are picked up without hand-editing the registry again.
+
+## Codex Ops panel
+
+The app now exposes a dedicated `Codex Ops` panel inside `Codex Hub`.
+
+It is intentionally narrower than `Source Ops`. It answers three operational questions directly:
+
+1. Is Codex automation actually armed right now?
+2. Why is the theme or dataset queue still empty?
+3. Which feeds, themes, and datasets came from Codex rather than fixed registries?
+
+The panel shows:
+
+- a short activation checklist
+- live queue diagnosis
+- blocked datasets and retry windows
+- Codex-discovered feed and API sources only
+- Codex-promoted themes only
+- Codex dataset proposals only
+- recent Codex-adjacent automation runs
 
 ## Self-tuning and experiment registry
 

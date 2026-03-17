@@ -38,6 +38,7 @@ import {
   CountryExposureMatrixPanel,
   DataQAPanel,
   SourceOpsPanel,
+  CodexOpsPanel,
   OntologyGraphPage,
   TransmissionSankeyPanel,
   SignalRidgelinePanel,
@@ -609,6 +610,7 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.panels['data-qa'] = dataQaPanel;
 
       this.ctx.panels['source-ops'] = new SourceOpsPanel();
+      this.ctx.panels['codex-ops'] = new CodexOpsPanel();
 
       const techReadinessPanel = new TechReadinessPanel();
       this.ctx.panels['tech-readiness'] = techReadinessPanel;
@@ -742,6 +744,7 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.codexHubPage = new CodexHubPage({
         getDataQAPanel: () => (this.ctx.panels['data-qa'] as DataQAPanel | undefined) ?? null,
         getSourceOpsPanel: () => (this.ctx.panels['source-ops'] as SourceOpsPanel | undefined) ?? null,
+        getCodexOpsPanel: () => (this.ctx.panels['codex-ops'] as CodexOpsPanel | undefined) ?? null,
         getIntelligenceArtifacts: () => ({
           reports: this.ctx.intelligenceCache.scheduledReports ?? [],
           transmission: this.ctx.intelligenceCache.eventMarketTransmission ?? null,

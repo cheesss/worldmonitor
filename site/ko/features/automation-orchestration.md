@@ -54,3 +54,13 @@ node --import tsx scripts/intelligence-scheduler.mjs status
 - 최근 shadow 성과가 나빠질 때 rollback
 
 즉 지금 구조는 무제한 auto-trader보다 제약된 자율 연구 스택에 더 가깝습니다.
+
+## Codex Ops 패널
+
+Codex Hub 안에 Codex Ops 패널이 추가되었습니다.
+
+이 패널은 아래 세 가지를 한 번에 보여줍니다.
+
+- Codex 자동화가 실제로 켜져 있는지
+- 왜 theme 또는 dataset queue가 아직 비어 있는지
+- Codex가 추가한 소스, 테마, 데이터셋이 무엇인지
