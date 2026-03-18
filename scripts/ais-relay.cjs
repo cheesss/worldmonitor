@@ -7692,13 +7692,15 @@ Stats grid (key metrics):
   <div class="disp-stat-box"><span class="disp-stat-value change-positive">+2.3%</span><span class="disp-stat-label">Growth</span></div>
 </div>
 
-Table:
-<table class="trade-tariffs-table" style="width:100%">
-  <thead><tr><th>COUNTRY</th><th>VALUE</th><th>CHG</th></tr></thead>
-  <tbody>
-    <tr><td>USA</td><td style="font-variant-numeric:tabular-nums">$27.3T</td><td class="change-positive">+2.3%</td></tr>
-  </tbody>
-</table>
+Table (.trade-tariffs-table is a WRAPPER div around <table>, NOT a class on <table> itself):
+<div class="trade-tariffs-table">
+  <table>
+    <thead><tr><th>COUNTRY</th><th>VALUE</th><th>CHG</th></tr></thead>
+    <tbody>
+      <tr><td>USA</td><td style="font-variant-numeric:tabular-nums">$27.3T</td><td class="change-positive">+2.3%</td></tr>
+    </tbody>
+  </table>
+</div>
 
 ## Anti-patterns — NEVER do these
 - NEVER: style="font-family:..." — removes monospace look
@@ -7709,6 +7711,7 @@ Table:
 - NEVER: style="border:2px solid blue" — only var(--border)
 - NEVER: colored bar charts with bright fills — use var(--green)/var(--red)
 - NEVER: white or light backgrounds — this is a dark theme
+- NEVER: class="trade-tariffs-table" on a <table> — it must wrap a <table>, not be the table itself
 
 ## Available CSS classes
 Cards/containers: economic-content, trade-restrictions-list, trade-restriction-card,
@@ -8147,7 +8150,7 @@ CSS variables are pre-defined in the iframe: --bg, --surface, --text, --text-sec
 - Numbers/prices: font-variant-numeric: tabular-nums
 - Positive values: color: var(--green) | Negative values: color: var(--red)
 - Design for 400px height with overflow-y: auto for larger content
-- Use inline styles referencing CSS variables; also allowed: a short <style> block in the output
+- Use inline styles referencing CSS variables only — NEVER add a <style> block (it loads after the head CSS and will override the monospace font and dark palette)
 - Always include a source footer
 
 ## Output format
