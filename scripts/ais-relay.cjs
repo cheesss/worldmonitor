@@ -1725,6 +1725,10 @@ async function seedTokenPanels() {
   const defi = { tokens: _mapTokens(_defiCfg.ids, _defiCfg.meta, byId) };
   const ai = { tokens: _mapTokens(_aiCfg.ids, _aiCfg.meta, byId) };
   const other = { tokens: _mapTokens(_otherCfg.ids, _otherCfg.meta, byId) };
+  if (defi.tokens.length === 0 && ai.tokens.length === 0 && other.tokens.length === 0) {
+    console.warn('[TokenPanels] All panels empty after mapping — skipping Redis write to preserve cached data');
+    return 0;
+  }
   await upstashSet('market:defi-tokens:v1', defi, TOKEN_PANELS_SEED_TTL);
   await upstashSet('market:ai-tokens:v1', ai, TOKEN_PANELS_SEED_TTL);
   await upstashSet('market:other-tokens:v1', other, TOKEN_PANELS_SEED_TTL);

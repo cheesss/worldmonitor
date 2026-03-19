@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { loadEnvFile, loadSharedConfig, CHROME_UA, writeExtraKey, getRedisCredentials, sleep } from './_seed-utils.mjs';
+import { loadEnvFile, loadSharedConfig, CHROME_UA, writeExtraKey, sleep } from './_seed-utils.mjs';
 
 const defiConfig = loadSharedConfig('defi-tokens.json');
 const aiConfig = loadSharedConfig('ai-tokens.json');

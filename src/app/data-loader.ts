@@ -1335,13 +1335,13 @@ export class DataLoaderManager implements AppModule {
       this.ctx.statusPanel?.updateApi('CoinGecko', { status: 'error' });
     }
 
-    try {
-      const cryptoHeatmapPanel = this.ctx.panels['crypto-heatmap'] as CryptoHeatmapPanel | undefined;
-      const defiPanel = this.ctx.panels['defi-tokens'] as DefiTokensPanel | undefined;
-      const aiPanel = this.ctx.panels['ai-tokens'] as AiTokensPanel | undefined;
-      const otherPanel = this.ctx.panels['other-tokens'] as OtherTokensPanel | undefined;
+    const cryptoHeatmapPanel = this.ctx.panels['crypto-heatmap'] as CryptoHeatmapPanel | undefined;
+    const defiPanel = this.ctx.panels['defi-tokens'] as DefiTokensPanel | undefined;
+    const aiPanel = this.ctx.panels['ai-tokens'] as AiTokensPanel | undefined;
+    const otherPanel = this.ctx.panels['other-tokens'] as OtherTokensPanel | undefined;
 
-      if (cryptoHeatmapPanel || defiPanel || aiPanel || otherPanel) {
+    if (cryptoHeatmapPanel || defiPanel || aiPanel || otherPanel) {
+      try {
         const [sectors, defi, ai, other] = await Promise.all([
           cryptoHeatmapPanel ? fetchCryptoSectors() : Promise.resolve([]),
           defiPanel ? fetchDefiTokens() : Promise.resolve([]),
@@ -1352,9 +1352,13 @@ export class DataLoaderManager implements AppModule {
         defiPanel?.renderTokens(defi);
         aiPanel?.renderTokens(ai);
         otherPanel?.renderTokens(other);
+      } catch (err) {
+        console.warn('[DataLoader] Token panel load failed:', err);
+        cryptoHeatmapPanel?.showRetrying(t('common.failedCryptoData'));
+        defiPanel?.showRetrying(t('common.failedCryptoData'));
+        aiPanel?.showRetrying(t('common.failedCryptoData'));
+        otherPanel?.showRetrying(t('common.failedCryptoData'));
       }
-    } catch {
-      // Token panel errors are non-critical
     }
   }
 

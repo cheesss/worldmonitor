@@ -238,7 +238,7 @@ export class CryptoHeatmapPanel extends Panel {
 
   public renderSectors(data: Array<{ id: string; name: string; change: number }>): void {
     if (data.length === 0) {
-      this.showRetrying('Failed to load crypto sector data');
+      this.showRetrying(t('common.failedSectorData'));
       return;
     }
 
@@ -264,7 +264,7 @@ export class CryptoHeatmapPanel extends Panel {
 export class TokenListPanel extends Panel {
   public renderTokens(data: TokenData[]): void {
     if (data.length === 0) {
-      this.showRetrying('Failed to load token data');
+      this.showRetrying(t('common.failedCryptoData'));
       return;
     }
 

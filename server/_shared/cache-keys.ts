@@ -74,5 +74,8 @@ export const BOOTSTRAP_TIERS: Record<string, 'slow' | 'fast'> = {
   securityAdvisories: 'slow',
   forecasts: 'fast',
   customsRevenue: 'slow',
-  cryptoSectors: 'slow', defiTokens: 'slow', aiTokens: 'slow', otherTokens: 'slow',
+  cryptoSectors: 'slow',
+  defiTokens: 'slow',
+  aiTokens: 'slow',
+  otherTokens: 'slow',
 };
