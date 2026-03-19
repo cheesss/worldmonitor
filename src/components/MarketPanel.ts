@@ -279,7 +279,7 @@ export class TokenListPanel extends Panel {
         <div class="market-data">
           <span class="market-price">$${tok.price.toLocaleString(undefined, { maximumFractionDigits: tok.price < 1 ? 6 : 2 })}</span>
           <span class="market-change ${getChangeClass(tok.change24h)}">${formatChange(tok.change24h)}</span>
-          <span class="market-change ${getChangeClass(tok.change7d)}" style="font-size:10px;opacity:0.7">${formatChange(tok.change7d)}W</span>
+          <span class="market-change market-change--7d ${getChangeClass(tok.change7d)}">${formatChange(tok.change7d)}W</span>
         </div>
       </div>
     `
@@ -304,6 +304,6 @@ export class AiTokensPanel extends TokenListPanel {
 
 export class OtherTokensPanel extends TokenListPanel {
   constructor() {
-    super({ id: 'other-tokens', title: 'Tokens' });
+    super({ id: 'other-tokens', title: 'Alt Tokens' });
   }
 }

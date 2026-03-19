@@ -67,6 +67,10 @@ async function main() {
   const ai = { tokens: mapTokens(aiConfig.ids, aiConfig.meta, byId) };
   const other = { tokens: mapTokens(otherConfig.ids, otherConfig.meta, byId) };
 
+  if (defi.tokens.length === 0 && ai.tokens.length === 0 && other.tokens.length === 0) {
+    throw new Error('All token panels returned empty — refusing to overwrite cache');
+  }
+
   await writeExtraKey(DEFI_KEY, defi, CACHE_TTL);
   await writeExtraKey(AI_KEY, ai, CACHE_TTL);
   await writeExtraKey(OTHER_KEY, other, CACHE_TTL);

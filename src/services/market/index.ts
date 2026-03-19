@@ -11,6 +11,7 @@ import {
   type ListMarketQuotesResponse,
   type ListCryptoQuotesResponse,
   type ListCryptoSectorsResponse,
+  type CryptoSector,
   type ListDefiTokensResponse,
   type ListAiTokensResponse,
   type ListOtherTokensResponse,
@@ -183,9 +184,9 @@ export async function fetchCrypto(): Promise<CryptoData[]> {
 // Crypto Sectors
 // ========================================================================
 
-let lastSuccessfulSectors: Array<{ id: string; name: string; change: number }> = [];
+let lastSuccessfulSectors: CryptoSector[] = [];
 
-export async function fetchCryptoSectors(): Promise<Array<{ id: string; name: string; change: number }>> {
+export async function fetchCryptoSectors(): Promise<CryptoSector[]> {
   const hydrated = getHydratedData('cryptoSectors') as ListCryptoSectorsResponse | undefined;
   if (hydrated?.sectors?.length) {
     lastSuccessfulSectors = hydrated.sectors;
