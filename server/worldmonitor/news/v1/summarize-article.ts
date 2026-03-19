@@ -14,6 +14,7 @@ import {
 } from './_shared';
 import { CHROME_UA } from '../../../_shared/constants';
 import { isProviderAvailable } from '../../../_shared/llm-health';
+import { sanitizeHeadlines, sanitizeForPrompt } from '../../../_shared/llm-sanitize.js';
 
 // ======================================================================
 // Reasoning preamble detection
@@ -38,14 +39,18 @@ export async function summarizeArticle(
 ): Promise<SummarizeArticleResponse> {
   const { provider, mode = 'brief', geoContext = '', variant = 'full', lang = 'en' } = req;
 
-  // Input sanitization (M-14 fix): limit headline count and length
+  // Input sanitization: limit count/length, then strip LLM injection patterns
   const MAX_HEADLINES = 10;
   const MAX_HEADLINE_LEN = 500;
   const MAX_GEO_CONTEXT_LEN = 2000;
-  const headlines = (req.headlines || [])
-    .slice(0, MAX_HEADLINES)
-    .map(h => typeof h === 'string' ? h.slice(0, MAX_HEADLINE_LEN) : '');
-  const sanitizedGeoContext = typeof geoContext === 'string' ? geoContext.slice(0, MAX_GEO_CONTEXT_LEN) : '';
+  const headlines = sanitizeHeadlines(
+    (req.headlines || [])
+      .slice(0, MAX_HEADLINES)
+      .map(h => typeof h === 'string' ? h.slice(0, MAX_HEADLINE_LEN) : ''),
+  );
+  const sanitizedGeoContext = sanitizeForPrompt(
+    typeof geoContext === 'string' ? geoContext.slice(0, MAX_GEO_CONTEXT_LEN) : '',
+  );
 
   // Provider credential check
   const skipReasons: Record<string, string> = {
