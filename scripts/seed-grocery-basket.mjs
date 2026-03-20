@@ -9,6 +9,7 @@ const config = loadSharedConfig('grocery-basket.json');
 const CANONICAL_KEY = 'economic:grocery-basket:v1';
 const CACHE_TTL = 21600; // 6h
 const EXA_DELAY_MS = 150;
+const FIRECRAWL_DELAY_MS = 500;
 
 // Hardcoded FX fallbacks — used when Yahoo Finance returns null/zero
 const FX_FALLBACKS = {
@@ -90,11 +91,69 @@ async function searchExa(query, sites, locationCode) {
   return resp.json();
 }
 
+// Firecrawl fallback — renders JS-heavy SPA pages and extracts prices via LLM schema
+async function scrapeFirecrawl(url, expectedCurrency) {
+  const apiKey = process.env.FIRECRAWL_API_KEY || '';
+  if (!apiKey) return null;
+  try {
+    const resp = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['extract'],
+        extract: {
+          prompt: `Find the retail unit price of the grocery product on this page. Return the numeric price and ISO 4217 currency code (e.g. ${expectedCurrency}).`,
+          schema: {
+            type: 'object',
+            properties: {
+              price: { type: 'number', description: 'Retail price as a number' },
+              currency: { type: 'string', description: 'ISO 4217 currency code, e.g. SAR, KRW, USD' },
+            },
+            required: ['price', 'currency'],
+          },
+        },
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => '');
+      console.warn(`    [Firecrawl] ${resp.status}: ${txt.slice(0, 80)}`);
+      return null;
+    }
+    const data = await resp.json();
+    const ex = data?.data?.extract;
+    if (!ex?.price || ex.price <= 0) return null;
+    const ccy = (ex.currency || '').toUpperCase().trim();
+    if (ccy !== expectedCurrency) {
+      console.warn(`    [Firecrawl] currency mismatch: got ${ccy}, expected ${expectedCurrency}`);
+      return null;
+    }
+    const minPrice = CURRENCY_MIN[expectedCurrency] ?? 0;
+    if (ex.price <= minPrice || ex.price >= 100000) return null;
+    return { price: ex.price, currency: expectedCurrency, source: url };
+  } catch (err) {
+    console.warn(`    [Firecrawl] error: ${err.message}`);
+    return null;
+  }
+}
+
 // All supported currency codes — keep in sync with grocery-basket.json fxSymbols
 const CCY = 'USD|GBP|EUR|JPY|CNY|INR|AUD|CAD|BRL|MXN|ZAR|TRY|NGN|KRW|SGD|PKR|AED|SAR|QAR|KWD|BHD|OMR|EGP|JOD|LBP|KES|ARS|IDR|PHP';
 
 // Currency symbol → ISO code map for sites that use symbols instead of ISO codes
-const SYMBOL_MAP = { '£': 'GBP', '€': 'EUR', '¥': 'JPY', '₩': 'KRW', '₹': 'INR', '₦': 'NGN', 'R$': 'BRL', 'R ': 'ZAR' };
+const SYMBOL_MAP = { '£': 'GBP', '€': 'EUR', '¥': 'JPY', '₩': 'KRW', '₹': 'INR', '₦': 'NGN', 'R$': 'BRL' };
+
+// Minimum plausible local price per currency — prevents matching product codes / IDs
+// e.g. IDR 4 = $0.0003 (nonsense), NGN 20 = $0.01 (nonsense), KRW 5 = $0.004 (nonsense)
+const CURRENCY_MIN = { NGN: 50, IDR: 500, ARS: 50, KRW: 1000, ZAR: 2, PKR: 20, LBP: 1000 };
+
+// Maximum plausible USD price per item — catches bulk/wholesale products (e.g. 25lb salt bag)
+// Applied only to USD-denominated countries; other currencies vary too widely in purchasing power
+const ITEM_USD_MAX = { sugar: 8, salt: 5, rice: 6, pasta: 4, potatoes: 6, oil: 15, flour: 8, eggs: 12, milk: 8, bread: 8 };
 
 const PRICE_PATTERNS = [
   new RegExp(`(\\d+(?:\\.\\d{1,3})?)\\s*(${CCY})`, 'i'),
@@ -109,7 +168,8 @@ function matchPrice(text, url) {
       const [price, currency] = /^\d/.test(match[1])
         ? [parseFloat(match[1]), match[2].toUpperCase()]
         : [parseFloat(match[2]), match[1].toUpperCase()];
-      if (price > 0 && price < 100000) return { price, currency, source: url || '' };
+      const minPrice = CURRENCY_MIN[currency] ?? 0;
+      if (price > minPrice && price < 100000) return { price, currency, source: url || '' };
     }
   }
   // Fallback: currency symbols (£, €, ¥, ₹, ₩, ₦, R$)
@@ -118,7 +178,8 @@ function matchPrice(text, url) {
     const m = text.match(re);
     if (m) {
       const price = parseFloat(m[1].replace(',', '.'));
-      if (price > 0 && price < 100000) return { price, currency: iso, source: url || '' };
+      const minPrice = CURRENCY_MIN[iso] ?? 0;
+      if (price > minPrice && price < 100000) return { price, currency: iso, source: url || '' };
     }
   }
   return null;
@@ -148,52 +209,79 @@ async function fetchGroceryBasketPrices() {
 
   for (const country of config.countries) {
     console.log(`\n  Processing ${country.flag} ${country.name} (${country.currency})...`);
-    const itemPrices = [];
-    let totalUsd = 0;
     const fxRate = fxRates[country.currency] || FX_FALLBACKS[country.currency] || null;
 
-    for (const item of config.items) {
-      await sleep(EXA_DELAY_MS);
+    // Process all items concurrently — 100ms stagger to respect EXA/Firecrawl rate limits
+    const itemPrices = await Promise.all(config.items.map(async (item, idx) => {
+      await sleep(idx * 200); // stagger starts — 200ms prevents EXA rate limit with 10 concurrent
 
       let localPrice = null;
       let sourceSite = '';
 
+      let exaUrls = [];
       try {
-        // Query targets the item directly — country context comes from includeDomains + userLocation
-        const query = `${item.query} price`;
-        const exaResult = await searchExa(query, country.sites, country.code);
+        const exaResult = await searchExa(`${item.query} price`, country.sites, country.code);
 
         if (exaResult?.results?.length) {
+          exaUrls = exaResult.results.map(r => r.url).filter(Boolean);
           for (const result of exaResult.results) {
             const extracted = extractPrice(result, country.currency);
-            if (extracted) {
-              localPrice = extracted.price;
-              sourceSite = extracted.source;
-              break;
+            if (!extracted) continue;
+            // Reject bulk/warehouse sizes by checking USD equivalent against per-item cap
+            if (fxRate && ITEM_USD_MAX[item.id]) {
+              const usdEquiv = extracted.price * fxRate;
+              if (usdEquiv > ITEM_USD_MAX[item.id]) {
+                console.warn(`    [bulk] ${item.id}: ${extracted.price} ${country.currency} ($${usdEquiv.toFixed(2)}) > max $${ITEM_USD_MAX[item.id]} — skipping`);
+                continue;
+              }
             }
+            localPrice = extracted.price;
+            sourceSite = extracted.source;
+            break;
           }
         }
       } catch (err) {
         console.warn(`    [${country.code}/${item.id}] EXA error: ${err.message}`);
       }
 
-      const usdPrice = localPrice !== null && fxRate ? +(localPrice * fxRate).toFixed(4) : null;
-      if (usdPrice !== null) totalUsd += usdPrice;
+      // Firecrawl fallback — renders JS-heavy SPAs (noon.com, coupang, shopee, etc.)
+      if (localPrice === null && exaUrls.length > 0) {
+        for (const url of exaUrls.slice(0, 2)) {
+          const fc = await scrapeFirecrawl(url, country.currency);
+          if (!fc) continue;
+          // Apply same bulk cap to Firecrawl results
+          if (fxRate && ITEM_USD_MAX[item.id]) {
+            const usdEquiv = fc.price * fxRate;
+            if (usdEquiv > ITEM_USD_MAX[item.id]) {
+              console.warn(`    [FC bulk] ${item.id}: ${fc.price} ${country.currency} ($${usdEquiv.toFixed(2)}) > max — skipping`);
+              continue;
+            }
+          }
+          localPrice = fc.price;
+          sourceSite = fc.source;
+          console.log(`    [FC✓] ${item.id}: ${url.slice(0, 55)}`);
+          break;
+        }
+      }
 
-      itemPrices.push({
+      const usdPrice = localPrice !== null && fxRate ? +(localPrice * fxRate).toFixed(4) : null;
+      const status = localPrice !== null ? `${localPrice} ${country.currency} = $${usdPrice}` : 'N/A';
+      console.log(`    ${item.id}: ${status}`);
+
+      return {
         itemId: item.id,
         itemName: item.name,
         unit: item.unit,
         localPrice: localPrice !== null ? +localPrice.toFixed(4) : null,
-        usdPrice: usdPrice,
+        usdPrice,
         currency: country.currency,
         sourceSite,
         available: localPrice !== null,
-      });
+      };
+    }));
 
-      const status = localPrice !== null ? `${localPrice} ${country.currency} = $${usdPrice}` : 'N/A';
-      console.log(`    ${item.id}: ${status}`);
-    }
+    let totalUsd = 0;
+    for (const ip of itemPrices) if (ip.usdPrice !== null) totalUsd += ip.usdPrice;
 
     countriesResult.push({
       code: country.code,
