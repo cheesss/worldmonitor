@@ -30,6 +30,17 @@ function formatPositionSource(source: string): string {
   return escapeHtml(source);
 }
 
+function fmtUtcTime(utc: string | undefined): string {
+  if (!utc) return '\u2014';
+  const d = new Date(utc.includes('T') ? utc : utc.replace(' ', 'T') + 'Z');
+  return isNaN(d.getTime()) ? '\u2014' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDelayMin(min: number | undefined): string {
+  if (min === undefined || min === 0) return '';
+  return `<span style="color:${min > 0 ? '#f97316' : '#22c55e'};font-size:10px;margin-left:3px">${min > 0 ? '+' : ''}${min}m</span>`;
+}
+
 export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'aircraft' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'iranEvent' | 'gpsJamming' | 'radiation';
 
 interface TechEventPopupData {
@@ -873,11 +884,14 @@ export class MapPopup {
 
       const parts: string[] = [];
 
-      // Photo
+      // Photo — sanitizeUrl validates scheme, preventing javascript: injection in img src
       if (live.photoUrl) {
-        const photoLink = live.photoLink ? sanitizeUrl(live.photoLink) : '#';
-        const credit = live.photoCredit ? `<span class="flight-photo-credit">\u00a9 ${escapeHtml(live.photoCredit)}</span>` : '';
-        parts.push(`<div class="flight-photo"><a href="${photoLink}" target="_blank" rel="noopener"><img src="${escapeHtml(live.photoUrl)}" alt="${escapeHtml(live.callsign)}" loading="lazy" style="width:100%;border-radius:4px;display:block"></a>${credit}</div>`);
+        const photoSrc = sanitizeUrl(live.photoUrl);
+        if (photoSrc) {
+          const photoLink = live.photoLink ? sanitizeUrl(live.photoLink) : '#';
+          const credit = live.photoCredit ? `<span class="flight-photo-credit">\u00a9 ${escapeHtml(live.photoCredit)}</span>` : '';
+          parts.push(`<div class="flight-photo"><a href="${photoLink}" target="_blank" rel="noopener"><img src="${photoSrc}" alt="${escapeHtml(live.callsign)}" loading="lazy" style="width:100%;border-radius:4px;display:block"></a>${credit}</div>`);
+        }
       }
 
       // Route (FROM → TO)
@@ -892,33 +906,22 @@ export class MapPopup {
             <span style="flex:1;text-align:right">${duration}</span>
           </div>`);
 
-        // Times table
-        const fmtTime = (utc: string | undefined): string => {
-          if (!utc) return '\u2014';
-          const d = new Date(utc.includes('T') ? utc : utc.replace(' ', 'T') + 'Z');
-          return isNaN(d.getTime()) ? '\u2014' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        };
-        const fmtDelay = (min: number | undefined): string => {
-          if (!min) return '';
-          return `<span style="color:${min > 0 ? '#f97316' : '#22c55e'};font-size:10px;margin-left:3px">${min > 0 ? '+' : ''}${min}m</span>`;
-        };
-
-        const depSched = fmtTime(live.depTimeUtc);
-        const arrSched = fmtTime(live.arrTimeUtc);
-        const depEst = fmtTime(live.depEstimatedUtc);
-        const arrEst = fmtTime(live.arrEstimatedUtc);
+        const depSched = fmtUtcTime(live.depTimeUtc);
+        const arrSched = fmtUtcTime(live.arrTimeUtc);
+        const depEst = fmtUtcTime(live.depEstimatedUtc);
+        const arrEst = fmtUtcTime(live.arrEstimatedUtc);
+        const hasDelay = live.depDelayedMin !== 0 || live.arrDelayedMin !== 0;
 
         parts.push(`
           <div class="flight-times" style="font-size:11px;display:grid;grid-template-columns:1fr auto 1fr;gap:2px 8px;margin-bottom:6px;opacity:0.85">
-            <span style="opacity:0.5;font-size:10px;text-transform:uppercase">${t('popups.flight.scheduled') || 'Scheduled'}</span>
+            <span style="opacity:0.5;font-size:10px;text-transform:uppercase">DEP</span>
             <span></span>
-            <span style="opacity:0.5;font-size:10px;text-transform:uppercase;text-align:right">${t('popups.flight.scheduled') || 'Scheduled'}</span>
+            <span style="opacity:0.5;font-size:10px;text-transform:uppercase;text-align:right">ARR</span>
+            <span style="opacity:0.5;font-size:10px">${t('popups.flight.scheduled') || 'Sched'}</span><span></span><span style="opacity:0.5;font-size:10px;text-align:right">${t('popups.flight.scheduled') || 'Sched'}</span>
             <span>${depSched}</span><span style="opacity:0.3;text-align:center">\u2194</span><span style="text-align:right">${arrSched}</span>
-            ${(live.depDelayedMin || live.arrDelayedMin) ? `
-            <span style="opacity:0.5;font-size:10px;text-transform:uppercase">${t('popups.flight.estimated') || 'Estimated'}</span>
-            <span></span>
-            <span style="opacity:0.5;font-size:10px;text-transform:uppercase;text-align:right">${t('popups.flight.estimated') || 'Estimated'}</span>
-            <span>${depEst}${fmtDelay(live.depDelayedMin)}</span><span style="opacity:0.3;text-align:center">\u2194</span><span style="text-align:right">${arrEst}${fmtDelay(live.arrDelayedMin)}</span>` : ''}
+            ${hasDelay ? `
+            <span style="opacity:0.5;font-size:10px">${t('popups.flight.estimated') || 'Est'}</span><span></span><span style="opacity:0.5;font-size:10px;text-align:right">${t('popups.flight.estimated') || 'Est'}</span>
+            <span>${depEst}${fmtDelayMin(live.depDelayedMin)}</span><span style="opacity:0.3;text-align:center">\u2194</span><span style="text-align:right">${arrEst}${fmtDelayMin(live.arrDelayedMin)}</span>` : ''}
           </div>`);
       }
 
