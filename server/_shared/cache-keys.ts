@@ -51,6 +51,7 @@ export const BOOTSTRAP_CACHE_KEYS: Record<string, string> = {
   customsRevenue:     'trade:customs-revenue:v1',
   sanctionsPressure: 'sanctions:pressure:v1',
   groceryBasket:     'economic:grocery-basket:v1',
+  bigmac:            'economic:bigmac:v1',
 };
 
 export const BOOTSTRAP_TIERS: Record<string, 'slow' | 'fast'> = {
@@ -72,4 +73,5 @@ export const BOOTSTRAP_TIERS: Record<string, 'slow' | 'fast'> = {
   forecasts: 'fast',
   customsRevenue: 'slow',
   groceryBasket: 'slow',
+  bigmac: 'slow',
 };
