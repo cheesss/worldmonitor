@@ -52,6 +52,7 @@ export const DiscoverySeedSchema = z.object({
 export const SearchConfigSchema = z.object({
   numResults: z.number().default(3),
   queryTemplate: z.string().optional(),
+  urlPathContains: z.string().optional(),
 });
 
 export const RetailerConfigSchema = z.object({

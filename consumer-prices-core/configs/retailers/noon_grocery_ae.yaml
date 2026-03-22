@@ -8,7 +8,8 @@ retailer:
   enabled: true
 
   searchConfig:
-    numResults: 3
+    numResults: 5
+    urlPathContains: /p/
     queryTemplate: "{canonicalName} grocery fresh food {currency} {market}"
 
   rateLimit:

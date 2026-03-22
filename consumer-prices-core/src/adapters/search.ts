@@ -25,14 +25,23 @@ const MARKET_NAMES: Record<string, string> = {
   eg: 'Egypt',
 };
 
+/** Packaging/container words that are not product identity tokens. */
+const PACKAGING_WORDS = new Set(['pack', 'box', 'bag', 'container', 'bottle', 'can', 'jar', 'tin', 'set', 'kit', 'bundle']);
+
 /**
- * Token overlap: ≥40% of canonical name words (>2 chars) must appear in extracted productName.
- * Catches gross mismatches (seeds vs eggs, storage boxes vs milk) while tolerating
- * brand name differences ("Almarai Fresh Milk 1L" matches "Milk 1L").
+ * Token overlap: ≥40% of canonical name identity words (>2 chars, non-packaging) must appear
+ * in extracted productName.
+ * Packaging words (Pack/Box/Bag/etc.) are stripped before comparison so "Eggs Fresh 12 Pack"
+ * matches "Eggs x 15" on the "eggs" token alone.
+ * Catches gross mismatches because category tokens like "tomatoes" differ from "tomato"
+ * (stemming gap blocks seed/storage box false positives).
  */
 export function isTitlePlausible(canonicalName: string, productName: string | undefined): boolean {
   if (!productName) return false;
-  const tokens = canonicalName.toLowerCase().split(/\W+/).filter((w) => w.length > 2);
+  const tokens = canonicalName
+    .toLowerCase()
+    .split(/\W+/)
+    .filter((w) => w.length > 2 && !PACKAGING_WORDS.has(w));
   if (tokens.length === 0) return true;
   const extracted = productName.toLowerCase();
   const matches = tokens.filter((w) => extracted.includes(w));
@@ -134,23 +143,27 @@ export class SearchAdapter implements RetailerAdapter {
       throw new Error(`Exa: no pages found for "${canonicalName}" on ${domain}`);
     }
 
-    const safeUrls = exaResults.map((r) => r.url).filter((url) => !!url && isAllowedHost(url, domain));
+    const pathFilter = cfg?.urlPathContains;
+    const safeUrls = exaResults
+      .map((r) => r.url)
+      .filter((url) => !!url && isAllowedHost(url, domain) && (!pathFilter || url.includes(pathFilter)));
 
     ctx.logger.info(
       `  [search:discovery] ${canonicalName}: ${exaResults.length} URLs from Exa, ${safeUrls.length} passed domain check`,
     );
 
     if (safeUrls.length === 0) {
-      throw new Error(`Exa: all ${exaResults.length} results failed domain check (expected hostname: ${domain})`);
+      throw new Error(`Exa: all ${exaResults.length} results failed domain check (expected hostname: ${domain}${pathFilter ? `, path: *${pathFilter}*` : ''})`);
     }
 
     // Stage 2: Firecrawl structured extraction — iterate safe URLs until one yields a valid price
     const extractSchema = {
+      prompt: `Find the listed retail price of this product in ${currency}. The price may be displayed as two parts split across lines — like "3" and ".95" next to "${currency}" — combine them to get 3.95. Return the listed price even if the product is currently out of stock. Return the product name, the numeric price in ${currency}, the currency code, and whether it is in stock.`,
       fields: {
         productName: { type: 'string' as const, description: 'Name or title of the product' },
-        price: { type: 'number' as const, description: `Retail price in ${currency}` },
+        price: { type: 'number' as const, description: `Retail price in ${currency} as a single number (e.g. 4.69)` },
         currency: { type: 'string' as const, description: `Currency code, should be ${currency}` },
-        inStock: { type: 'boolean' as const, description: 'Whether the product is currently in stock' },
+        inStock: { type: 'boolean' as const, description: 'Whether the product is currently in stock and purchasable' },
       },
     };
 

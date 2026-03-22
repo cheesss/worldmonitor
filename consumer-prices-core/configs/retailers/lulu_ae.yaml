@@ -4,12 +4,13 @@ retailer:
   marketCode: ae
   currencyCode: AED
   adapter: search
-  baseUrl: https://www.luluhypermarket.com
+  baseUrl: https://gcc.luluhypermarket.com
   enabled: true
 
   searchConfig:
-    numResults: 3
+    numResults: 5
     queryTemplate: "{canonicalName} {currency} {market} price"
+    urlPathContains: /en-ae/
 
   rateLimit:
     requestsPerMinute: 15
