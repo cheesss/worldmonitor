@@ -161,7 +161,7 @@ async function buildTopCategories(basketId: string): Promise<WMCategorySnapshot[
       .replace(/^-|-$/g, '');
     return {
       slug,
-      name: r.category.charAt(0).toUpperCase() + r.category.slice(1),
+      name: r.category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
       wowPct,
       momPct: 0, // TODO: requires 30-day baseline per category
       currentIndex: Math.round(cur * 10) / 10,
